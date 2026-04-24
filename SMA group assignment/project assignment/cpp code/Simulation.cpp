@@ -265,7 +265,10 @@ void simulation::schedulePatients() {
 
             if (patient->patientType == 1) {
                 if (previousWeek < week[i]) {
-                    movingAvgElectiveAppWT[previousWeek] /= numberOfElectivePerWeek;
+                    if (numberOfElectivePerWeek > 0)
+                        movingAvgElectiveAppWT[previousWeek] /= numberOfElectivePerWeek;
+                    else
+                        movingAvgElectiveAppWT[previousWeek] = 0.0;
                     numberOfElectivePerWeek = 0;
                     previousWeek = week[i];
                 }
@@ -292,8 +295,12 @@ void simulation::schedulePatients() {
             if (!found) week[i] = W;
         }
     }
-    movingAvgElectiveAppWT[W - 1] /= numberOfElectivePerWeek;
-    avgElectiveAppWT /= numberOfElective;
+    if (numberOfElectivePerWeek > 0)
+        movingAvgElectiveAppWT[W - 1] /= numberOfElectivePerWeek;
+    else
+        movingAvgElectiveAppWT[W - 1] = 0.0;
+    if (numberOfElective > 0)
+        avgElectiveAppWT /= numberOfElective;
 }
 
 // ── sortPatientsOnAppTime ─────────────────────────────────────────────────────
@@ -367,8 +374,16 @@ void simulation::runOneSimulation() {
         }
 
         if (prevWeek != patient->scanWeek) {
-            movingAvgElectiveScanWT[prevWeek] /= numberOfPatientsWeek[0];
-            movingAvgUrgentScanWT[prevWeek]   /= numberOfPatientsWeek[1];
+            // Bug 5 fix: guard against division by zero when a week has no
+            // scanned patients of a given type.
+            if (numberOfPatientsWeek[0] > 0)
+                movingAvgElectiveScanWT[prevWeek] /= numberOfPatientsWeek[0];
+            else
+                movingAvgElectiveScanWT[prevWeek] = 0.0;
+            if (numberOfPatientsWeek[1] > 0)
+                movingAvgUrgentScanWT[prevWeek]   /= numberOfPatientsWeek[1];
+            else
+                movingAvgUrgentScanWT[prevWeek]   = 0.0;
             movingAvgOT[prevWeek]             /= D;
             numberOfPatientsWeek[0] = numberOfPatientsWeek[1] = 0;
         }
@@ -385,12 +400,28 @@ void simulation::runOneSimulation() {
         prevDay  = patient->scanDay;
     }
 
-    movingAvgElectiveScanWT[W - 1] /= numberOfPatientsWeek[0];
-    movingAvgUrgentScanWT[W - 1]   /= numberOfPatientsWeek[1];
+    // Bug 3 fix: add the overtime of the LAST day in the simulation.
+    // The loop only accumulates a day's overtime when the day changes, so the
+    // final day (prevDay) was previously ignored.
+    if (prevDay > -1) {
+        double endOfDay = (prevDay == 3 || prevDay == 5) ? 13.0 : 17.0;
+        movingAvgOT[prevWeek] += max(0.0, prevScanEndTime - endOfDay);
+        avgOT                 += max(0.0, prevScanEndTime - endOfDay);
+    }
+
+    // Bug 5 fix: guard against division by zero for the last week.
+    if (numberOfPatientsWeek[0] > 0)
+        movingAvgElectiveScanWT[W - 1] /= numberOfPatientsWeek[0];
+    else
+        movingAvgElectiveScanWT[W - 1] = 0.0;
+    if (numberOfPatientsWeek[1] > 0)
+        movingAvgUrgentScanWT[W - 1]   /= numberOfPatientsWeek[1];
+    else
+        movingAvgUrgentScanWT[W - 1]   = 0.0;
     movingAvgOT[W - 1]             /= D;
 
-    avgElectiveScanWT /= numberOfPatients[0];
-    avgUrgentScanWT   /= numberOfPatients[1];
+    if (numberOfPatients[0] > 0) avgElectiveScanWT /= numberOfPatients[0];
+    if (numberOfPatients[1] > 0) avgUrgentScanWT   /= numberOfPatients[1];
     avgOT             /= (D * W);
 }
 

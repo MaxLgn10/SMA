@@ -100,12 +100,23 @@ def apply_strategy2(schedule, n_urgent):
             schedule[pos][d] = 2
 
 
-def apply_strategy3(schedule, n_urgent):
+def apply_strategy3(schedule, n_urgent, block_size=6):
     """
-    Strategy 3: one urgent slot after every block of elective slots.
-    Block size = floor((n_available - k) / k), adjusted per day count k.
-    For k=4 on a full day (N=20 natural case) this gives block_size=7,
-    closely matching the 'after every 6 elective' specification.
+    Strategy 3: one urgent slot after every fixed block of 6 elective slots.
+    As per the assignment specification:
+        "Starting from the beginning of a session, a time slot for urgent
+         patients is planned each time after a block of six time slots for
+         elective patients."
+
+    Implementation:
+      - Scan through the day's slots, count elective slots, and place an
+        urgent slot after every 6th elective slot.
+      - On a 32-slot full day, this places urgent slots at indices 6, 13,
+        20, 27 (at most 4).
+      - On a 16-slot half day, indices 6 and 13 (at most 2).
+      - If k (urgent slots to place for that day) is larger than the maximum
+        achievable with block_size=6, the remaining urgent slots are placed
+        at the END of the day (converting the latest electives to urgent).
     """
     per_day = distribute_per_day(n_urgent)
     for d in range(N_DAYS):
@@ -113,16 +124,25 @@ def apply_strategy3(schedule, n_urgent):
         if k == 0:
             continue
         n_avail = N_SLOTS_FULL if d in FULL_DAYS else N_SLOTS_HALF
-        block_size = (n_avail - k) // k  # elective slots before each urgent slot
-        elective_count = 0
-        urgent_placed = 0
-        for row in range(n_avail):
-            if urgent_placed < k and elective_count >= block_size:
+
+        # 1) Place urgent slots at fixed positions: every (block_size+1)-th slot
+        #    starting at index block_size (0-indexed).
+        placed = 0
+        pos = block_size  # index 6 for block_size=6
+        while pos < n_avail and placed < k:
+            schedule[pos][d] = 2
+            placed += 1
+            pos += block_size + 1
+
+        # 2) If k is larger than the number of positions produced above, place
+        #    the remaining urgent slots at the end of the day (working backwards),
+        #    skipping any slots that are already urgent.
+        row = n_avail - 1
+        while placed < k and row >= 0:
+            if schedule[row][d] != 2:
                 schedule[row][d] = 2
-                elective_count = 0
-                urgent_placed += 1
-            else:
-                elective_count += 1  # slot stays elective (1)
+                placed += 1
+            row -= 1
 
 
 # ---------------------------------------------------------------------------

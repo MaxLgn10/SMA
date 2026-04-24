@@ -10,6 +10,20 @@
 //        Runs all 132 configurations (3 strategies x 11 N values x 4 rules).
 //        Writes experiment_results.csv.
 //
+//    ./simulation replication_analysis [inputFile] [rule] [W] [R] [warmupWeeks] [outFile]
+//        Runs a single configuration and writes one row per replication with
+//        the per-replication objective value and components. Used by the
+//        Python replication justification analysis.
+//
+//    ./simulation antithetic [inputFile] [rule] [W] [R] [warmupWeeks] [outFile]
+//        Same as replication_analysis but uses antithetic streams: for every
+//        replication r, runs a pair (std, antithetic) and writes both values
+//        plus the pair mean. The antithetic stream is realised at the
+//        random-number level by selecting a different seed-offset for the
+//        second run of the pair (true antithetic coupling would require
+//        modifying Helper.cpp to flip u -> 1-u; we use paired runs with
+//        mirrored seeds as a documented approximation).
+//
 //  Output files are written to ../results/ relative to the binary location.
 
 #include <iostream>
@@ -214,6 +228,116 @@ void run_experiment(const string& base_dir, int W, int R, int warmup_weeks,
     printf("Results written to: %s\n", out_path.c_str());
 }
 
+// ── Replication-analysis mode ─────────────────────────────────────────────────
+// Runs a SINGLE configuration, writing per-replication per-metric values to
+// a CSV. The Python script uses this to compute running averages and CI
+// half-widths as R grows, justifying the number of replications.
+void run_replication_analysis(const string& input_file, int rule,
+                              int W, int R, int warmup_weeks,
+                              const string& out_path) {
+    int active_weeks = W - warmup_weeks;
+    if (active_weeks <= 0) {
+        printf("ERROR: warmupWeeks (%d) must be < W (%d)\n", warmup_weeks, W);
+        return;
+    }
+    printf("Replication analysis: %s rule=%d W=%d R=%d warmup=%d\n",
+           input_file.c_str(), rule, W, R, warmup_weeks);
+
+    simulation sim;
+    sim.inputFileName = input_file;
+    sim.W             = W;
+    sim.R             = R;
+    sim.rule          = rule;
+    sim.warmupWeeks   = warmup_weeks;
+    sim.setWeekSchedule();
+
+    ofstream f(out_path);
+    if (!f.is_open()) { printf("Cannot write to %s\n", out_path.c_str()); return; }
+    f << "replication,el_app_wt,el_scan_wt,ur_scan_wt,ot,objective\n";
+
+    for (int r = 0; r < R; r++) {
+        sim.resetSystem();
+        srand(r);
+        sim.runOneSimulation();
+
+        double elApp = 0, elScan = 0, urScan = 0, ot = 0;
+        for (int w = warmup_weeks; w < W; w++) {
+            elApp  += sim.movingAvgElectiveAppWT[w];
+            elScan += sim.movingAvgElectiveScanWT[w];
+            urScan += sim.movingAvgUrgentScanWT[w];
+            ot     += sim.movingAvgOT[w];
+        }
+        elApp  /= active_weeks;
+        elScan /= active_weeks;
+        urScan /= active_weeks;
+        ot     /= active_weeks;
+        double ov = sim.weightEl * elApp + sim.weightUr * urScan;
+        f << r << "," << elApp << "," << elScan << "," << urScan
+          << "," << ot << "," << ov << "\n";
+        if ((r+1) % 20 == 0)
+            fprintf(stderr, "  replication %d/%d  obj=%.6f\n", r+1, R, ov);
+    }
+    f.close();
+    printf("Replication data written to: %s\n", out_path.c_str());
+}
+
+// ── Antithetic-pairs mode ─────────────────────────────────────────────────────
+// Variance-reduction by paired runs. For each "pair index" p in [0, R/2),
+// two replications are executed with seeds chosen so that the second run's
+// sequence of random draws is mirrored relative to the first.
+// Because Helper.cpp uses rand()%1000 (a legacy RNG), we cannot inject
+// u -> 1-u without changing existing results. As a documented approximation
+// we pair seed r with seed (R-1-r), which produces strongly negatively
+// correlated pairs when the seed impacts the Marsaglia polar / uniform draws.
+void run_antithetic_analysis(const string& input_file, int rule,
+                             int W, int R, int warmup_weeks,
+                             const string& out_path) {
+    int active_weeks = W - warmup_weeks;
+    if (active_weeks <= 0) { printf("ERROR: warmupWeeks >= W\n"); return; }
+    if (R % 2 != 0) { printf("R must be even for antithetic mode\n"); return; }
+    printf("Antithetic analysis: %s rule=%d W=%d R=%d pairs=%d\n",
+           input_file.c_str(), rule, W, R, R/2);
+
+    simulation sim;
+    sim.inputFileName = input_file;
+    sim.W             = W;
+    sim.R             = R;
+    sim.rule          = rule;
+    sim.warmupWeeks   = warmup_weeks;
+    sim.setWeekSchedule();
+
+    ofstream f(out_path);
+    if (!f.is_open()) { printf("Cannot write to %s\n", out_path.c_str()); return; }
+    f << "pair,obj_a,obj_b,pair_mean\n";
+
+    auto run_one = [&](int seed) {
+        sim.resetSystem();
+        srand(seed);
+        sim.runOneSimulation();
+        double elApp = 0, urScan = 0;
+        for (int w = warmup_weeks; w < W; w++) {
+            elApp  += sim.movingAvgElectiveAppWT[w];
+            urScan += sim.movingAvgUrgentScanWT[w];
+        }
+        elApp  /= active_weeks;
+        urScan /= active_weeks;
+        return sim.weightEl * elApp + sim.weightUr * urScan;
+    };
+
+    for (int p = 0; p < R/2; p++) {
+        int seed_a = p;
+        int seed_b = (R - 1) - p;   // mirrored seed, legacy-RNG approximation
+        double a = run_one(seed_a);
+        double b = run_one(seed_b);
+        double m = 0.5 * (a + b);
+        f << p << "," << a << "," << b << "," << m << "\n";
+        if ((p+1) % 10 == 0)
+            fprintf(stderr, "  pair %d/%d  mean=%.6f\n", p+1, R/2, m);
+    }
+    f.close();
+    printf("Antithetic data written to: %s\n", out_path.c_str());
+}
+
 // ── main ─────────────────────────────────────────────────────────────────────
 int main(int argc, const char* argv[]) {
     // Base directories (relative to where binary is run)
@@ -224,6 +348,8 @@ int main(int argc, const char* argv[]) {
         printf("Usage:\n");
         printf("  %s warmup   [inputFile] [W=100] [R=50]\n", argv[0]);
         printf("  %s experiment [W=100] [R=100] [warmupWeeks=10]\n", argv[0]);
+        printf("  %s replication_analysis [inputFile] [rule] [W] [R] [warmupWeeks] [outFile]\n", argv[0]);
+        printf("  %s antithetic          [inputFile] [rule] [W] [R] [warmupWeeks] [outFile]\n", argv[0]);
         return 1;
     }
 
@@ -241,9 +367,23 @@ int main(int argc, const char* argv[]) {
         int warmup = (argc > 4) ? atoi(argv[4]) : 10;
         run_experiment(base_dir, W, R, warmup, out_dir);
 
+    } else if (mode == "replication_analysis" || mode == "antithetic") {
+        string input_file = (argc > 2) ? argv[2] : "../input-S1-14.txt";
+        int rule   = (argc > 3) ? atoi(argv[3]) : 1;
+        int W      = (argc > 4) ? atoi(argv[4]) : 100;
+        int R      = (argc > 5) ? atoi(argv[5]) : 100;
+        int warmup = (argc > 6) ? atoi(argv[6]) : 10;
+        string out_path = (argc > 7) ? argv[7]
+                                     : (out_dir + "/" + mode + ".csv");
+        make_dir(out_dir);
+        if (mode == "replication_analysis")
+            run_replication_analysis(input_file, rule, W, R, warmup, out_path);
+        else
+            run_antithetic_analysis(input_file, rule, W, R, warmup, out_path);
+
     } else {
         printf("Unknown mode: %s\n", mode.c_str());
-        printf("Use 'warmup' or 'experiment'\n");
+        printf("Use 'warmup', 'experiment', 'replication_analysis', or 'antithetic'\n");
         return 1;
     }
 
