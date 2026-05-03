@@ -1,0 +1,20 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+.pytest_cache/
+
+# Word lock files
+~$*.docx
+
+# Old report versions (keep only report_final_revised_v5.docx)
+report_final.docx
+report_final_layout_fixed.docx
+report_final_revised.docx
+report_final_revised_v2.docx
+report_final_revised_v3.docx
+report_final_revised_v4.docx
+
+# OS
+.DS_Store
+Thumbs.db
