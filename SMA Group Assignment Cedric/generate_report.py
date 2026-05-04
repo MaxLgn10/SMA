@@ -14,7 +14,7 @@ BLUE_LT  = RGBColor(0x4C, 0x94, 0xD8)   # caption blue
 BLACK    = RGBColor(0x00, 0x00, 0x00)
 
 RESULTS = r"C:\Users\Cedri\Documents\2.HIR\Simulation\github\SMA\SMA Group Assignment Cedric\results"
-OUT     = r"C:\Users\Cedri\Documents\2.HIR\Simulation\github\SMA\SMA Group Assignment Cedric\report_final_revised_v5.docx"
+OUT     = r"C:\Users\Cedri\Documents\2.HIR\Simulation\github\SMA\SMA Group Assignment Cedric\report_final_revised_v6.docx"
 
 # ── helpers ──────────────────────────────────────────────────────────────────
 def _run(p, text, bold=False, italic=False, underline=False,
@@ -128,9 +128,6 @@ def build():
     doc.add_page_break()
 
     # ══ TABLE OF CONTENTS ════════════════════════════════════════════════════
-    # TODO: python-docx does not support automatic page numbers in TOC or headers/footers.
-    # To add page numbers, open the saved .docx in Word and insert page numbers manually,
-    # or use a Word macro / python-docx XML injection after save.
     p = _para(doc, before=0, after=8)
     _run(p, "TABLE OF CONTENTS", bold=True, color=BLUE, size_pt=14)
 
@@ -216,12 +213,15 @@ def build():
         "Four hypotheses guide the experiment. Main hypothesis: at least one tested combination "
         "of n_urgent, timing strategy, and appointment rule achieves a statistically significant "
         "reduction in the weighted objective W relative to the current baseline (n_urgent = 14, "
-        "Strategy 1, Rule 1). Capacity hypothesis: a best tested intermediate value of n_urgent "
-        "exists that minimises W among the tested levels, because increasing n_urgent reduces SWTᵤ but raises AWTₑ. "
-        "Timing hypothesis: Strategy 2 (uniform spacing) achieves a lower W than Strategy 1 "
-        "(end-of-block) primarily through reduced SWTᵤ. Appointment-rule hypothesis: the "
-        "appointment rule is expected to mainly affect elective scan waiting time and overtime, "
-        "while having limited effect on the primary objective W. "
+        "Strategy 1, Rule 1). Capacity hypothesis: a best intermediate value of n_urgent "
+        "exists among the tested levels 10–20 that minimises W, because increasing n_urgent "
+        "reduces SWTᵤ but raises AWTₑ. "
+        "Timing hypothesis: Strategies 2 (uniform) and 3 (after-six) each achieve a lower W "
+        "than Strategy 1 (end-of-block) through reduced SWTᵤ; the relative ordering of "
+        "Strategies 2 and 3 is investigated empirically. "
+        "Appointment-rule hypothesis: the appointment rule is expected to mainly affect "
+        "elective scan waiting time and overtime, while having limited effect on the primary "
+        "objective W. "
         "The experimental test design is described in Sections 3–7.")
 
     doc.add_paragraph()
@@ -229,7 +229,7 @@ def build():
         "Three design decisions are examined: (1) the number of urgent slots per week, "
         "(2) the timing strategy for placing those slots within the weekly schedule, and "
         "(3) the appointment scheduling rule applied to elective patients. A full factorial "
-        "discrete-event simulation experiment evaluates all 72 combinations of these factors "
+        "discrete-event simulation experiment evaluates all 132 combinations of these factors "
         "to identify configurations that significantly outperform the current baseline. "
         "Discrete-event simulation (DES) is the standard methodology for evaluating "
         "such appointment scheduling systems, as it captures stochastic variability "
@@ -324,20 +324,13 @@ def build():
 
     body(doc,
         "Three design factors are investigated in a full factorial experiment of "
-        "6 × 3 × 4 = 72 configurations.")
+        "11 × 3 × 4 = 132 configurations.")
 
     heading2(doc, "Factor A – Number of urgent slots per week (n_urgent)")
     body(doc,
         "Total weekly slot capacity is fixed at 160. The number of urgent slots "
-        "takes six values: {10, 12, 14, 16, 18, 20}.")
-    body(doc,
-        "A step size of 2 slots was selected because the weekly schedule contains 10 session "
-        "blocks (8 full-day blocks and 2 half-day blocks), and a change of 2 slots represents "
-        "the minimum operationally meaningful reallocation that affects the block-level "
-        "distribution uniformly; even values were used as a screening grid. "
-        "Testing all 11 integer values from 10 to 20 would increase the experiment size by 83% "
-        "with limited additional resolution at the block level. "
-        "Conclusions about the optimal n_urgent are therefore limited to the six tested levels.")
+        "takes eleven values: all integers in the range 10–20 "
+        "(10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20).")
     body(doc,
         "The remainder are elective slots. "
         "The current baseline uses 14 urgent slots (146 elective). "
@@ -351,8 +344,10 @@ def build():
     bullet(doc, "Strategy 2 (Uniform): urgent slots spread across each day using "
                 "an even-spacing algorithm that minimises the maximum gap between "
                 "consecutive urgent slots within each operating day.")
-    bullet(doc, "Strategy 3 (After-six): one urgent slot inserted after every 6 "
-                "consecutive elective slots in a flat weekly sequence.")
+    bullet(doc, "Strategy 3 (After-six): within each operating day independently, one urgent "
+                "slot is inserted after every 6 consecutive elective slots. The counter resets "
+                "at each day boundary. Urgent slots per day are allocated proportionally to "
+                "day length using Hamilton's largest-remainder method.")
 
     heading2(doc, "Factor C – Appointment scheduling rule for elective patients")
     body(doc,
@@ -378,7 +373,7 @@ def build():
     for c, h in enumerate(["Factor", "Name", "Levels"]):
         tbl_header_cell(t2.rows[0].cells[c], h)
     for r, row in enumerate([
-        ("A", "Number of urgent slots (n_urgent)", "10, 12, 14, 16, 18, 20"),
+        ("A", "Number of urgent slots (n_urgent)", "10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20"),
         ("B", "Timing strategy",
          "1 (end-of-block), 2 (uniform), 3 (after-six)"),
         ("C", "Appointment scheduling rule",
@@ -386,7 +381,7 @@ def build():
     ], 1):
         for c, v in enumerate(row):
             tbl_cell(t2.rows[r].cells[c], v)
-    caption(doc, "Table 2. Experimental factors and their levels (full factorial: 72 configurations)")
+    caption(doc, "Table 2. Experimental factors and their levels (full factorial: 132 configurations)")
 
     doc.add_page_break()
 
@@ -473,24 +468,29 @@ def build():
         "begins only after the warm-up cutoff. The stopping criterion is time-based, "
         "consistent with the cyclic weekly structure.")
     body(doc,
-        "Key implementation assumptions: (1) The lunch break (12:00–13:00) is not modelled "
-        "as scanner downtime; scans that begin before 12:00 may extend into the lunch window "
-        "without interruption. (2) Patient tardiness is drawn from N(0, 2.5²) min; negative "
-        "values indicate early arrival and are retained as-is. (3) Overtime is measured as "
-        "the positive excess of the last scan completion time over the scheduled day-end time "
-        "(17:00 on full days, 12:00 on half-days); it is zero if all scans finish on time. "
-        "(4) The scanner queue within each slot uses SimPy's FIFO Resource discipline; "
-        "no preemptive priority is implemented. (5) Urgent patients who arrive when all "
-        "same-day urgent slots are taken are assigned to an overtime slot that begins after "
-        "all regularly scheduled patients have been served on that day.")
+        "Key implementation assumptions: (1) Patient tardiness is drawn from N(0, 2.5²) min; "
+        "negative values indicate early arrival and are retained as-is. "
+        "(2) Overtime is measured as the positive excess of the last scan completion time over "
+        "the scheduled day-end time (17:00 on full days, 12:00 on half-days); it is zero if "
+        "all scans finish on time. "
+        "(3) The scanner queue within each slot uses SimPy's FIFO Resource discipline; "
+        "no preemptive priority is implemented. "
+        "(4) Urgent patients who arrive when all same-day urgent slots are taken are assigned "
+        "to an overtime slot that begins after all regularly scheduled patients have been "
+        "served on that day. "
+        "(5) Scans that begin before 12:00 may extend into the lunch window without "
+        "interruption; only the scan start is blocked. "
+        "(6) No scan may start during the lunch break (12:00–13:00 on full days). If a "
+        "patient acquires the scanner during this interval, the scan start is delayed to "
+        "13:00; the scanner resource is held throughout the wait, preserving FIFO order.")
 
     heading2(doc, "5.5  Simulation time")
     body(doc,
         "Each replication simulates 72 virtual weeks: 20 weeks warm-up plus 52 weeks "
         "(one full year) of data collection. One week = 7 × 1,440 = 10,080 min. "
         "Data before the warm-up cutoff (minute 201,600) is discarded. "
-        "The full factorial experiment (72 configurations × 90 replications = 6,480 runs) "
-        "ran for approximately 308 wall-clock minutes using 8 CPU cores "
+        "The full factorial experiment (132 configurations × 57 replications = 7,524 runs) "
+        "ran for approximately 273 wall-clock minutes using 8 CPU cores "
         "(Python ProcessPoolExecutor).")
 
     doc.add_page_break()
@@ -518,15 +518,15 @@ def build():
         "time (SWTᵤ) because more urgent slots are available per day, but to increase "
         "appointment waiting time for elective patients (AWTₑ) because fewer elective slots "
         "are available. Consequently, W may show a trade-off or U-shaped pattern across the "
-        "tested urgent-slot levels {10, 12, 14, 16, 18, 20}. No formal claim of convexity is "
+        "tested urgent-slot levels 10–20. No formal claim of convexity is "
         "made without empirical verification.",
         bold_prefix=None)
     bullet(doc,
-        "Timing strategy hypothesis: Strategy 2 (uniform spacing) is expected to reduce SWTᵤ "
-        "and W relative to Strategy 1 (end-of-block) because urgent slots are distributed more "
-        "evenly across operating hours, reducing the maximum time an urgent patient must wait "
-        "for the next available urgent slot. The expected direction is Strategy 2 < Strategy 1 "
-        "for both SWTᵤ and W.",
+        "Timing strategy hypothesis: Strategies 2 (uniform spacing) and 3 (after-six) are "
+        "each expected to reduce SWTᵤ and W relative to Strategy 1 (end-of-block) because "
+        "both distribute urgent slots more evenly across operating hours, reducing the maximum "
+        "time an urgent patient must wait for the next available slot. The relative ordering "
+        "of Strategies 2 and 3 is an empirical question investigated in this experiment.",
         bold_prefix=None)
     bullet(doc,
         "Appointment-rule hypothesis: The appointment scheduling rule (Factor C) is expected "
@@ -544,7 +544,7 @@ def build():
 
     heading2(doc, "7.1  Full factorial design")
     body(doc,
-        "A complete 6 × 3 × 4 full factorial design was chosen because 72 "
+        "A complete 11 × 3 × 4 full factorial design was chosen because 132 "
         "configurations are computationally manageable and the full factorial allows "
         "unconfounded estimation of all main effects and two-way interactions "
         "(Montgomery, 2017). "
@@ -562,7 +562,7 @@ def build():
         "elective call inter-arrivals, urgent inter-arrivals, elective scan durations, "
         "urgent scan durations, patient tardiness, and no-show decisions. Seeds are "
         "derived deterministically via SHA-256 hashing of the stream name and replication "
-        "index, ensuring full reproducibility across all 72 configurations.")
+        "index, ensuring full reproducibility across all 132 configurations.")
     body(doc,
         "Because all configurations share the same sequence of random variates for each "
         "replication, differences in outcomes reflect structural configuration differences "
@@ -596,12 +596,10 @@ def build():
         "the 20-week threshold removes the initial transient while acknowledging the "
         "system's inherent week-to-week variability. "
         "Configurations with n_urgent ≥ 18 are expected to result in server utilisation "
-        "ρ ≥ 1.0 based on analytical capacity estimates. Under such conditions no steady "
-        "state exists and the elective appointment queue grows without bound; "
+        "ρ ≥ 1.0 based on analytical capacity estimates (n=19 and n=20 leave fewer elective "
+        "slots than expected weekly elective demand; n=18 is borderline). Under such conditions "
+        "no steady state exists and the elective appointment queue grows without bound; "
         "the simulation estimates do not represent stable long-run performance. "
-        "Specifically, high n_urgent reduces elective slot capacity to the point that "
-        "elective demand persistently exceeds supply, producing an ever-growing elective "
-        "backlog and continuously rising AWTₑ over the simulation horizon. "
         "These configurations are excluded from all recommendations. "
         "Confidence intervals reported for these configurations are not meaningful.")
 
@@ -626,29 +624,30 @@ def build():
     doc.add_paragraph()
     body(doc,
         "Based on n₀ = 10 pilot replications of the baseline configuration, the sample "
-        "mean W̄₀ = 0.439 and sample standard deviation s₀ = 0.092 were obtained. "
+        "mean W̄₀ = 0.442 and sample standard deviation s₀ = 0.074 were obtained. "
         "With t₀.₉₇₅,₉ = 2.262 (t-distribution, df = n₀ − 1 = 9) and relative precision "
         "target ε = 0.05, the required number of replications is:")
 
     p = body_para(doc)
     p.alignment = WD_ALIGN_PARAGRAPH.CENTER
-    _run(p, "n = ceil( (2.262 × 0.092 / (0.05 × 0.439))² ) = ceil(89.4) = 90",
+    _run(p, "n = ceil( (2.262 × 0.074 / (0.05 × 0.442))² ) = ceil(56.8) = 57",
          color=BLACK, size_pt=10)
 
     doc.add_paragraph()
     body(doc,
-        "The full factorial experiment used 90 replications per configuration, satisfying "
-        "the pilot-based criterion. The achieved relative precision with 90 replications "
-        "is 2.67% for the baseline W (95% CI half-width = 0.0116; W̄ = 0.433), well "
-        "within the 5% target. The pilot standard deviation (s₀ = 0.092) overestimated "
-        "the true variability; the actual standard deviation is 0.050. Results are "
-        "reported with achieved confidence intervals as the primary precision indicator.")
+        "The full factorial experiment used 57 replications per configuration, satisfying "
+        "the pilot-based criterion. The achieved relative precision with 57 replications "
+        "is 3.23% for the baseline W (95% CI half-width = 0.014; W̄ = 0.438), well "
+        "within the 5% target. The pilot standard deviation (s₀ = 0.074) slightly "
+        "overestimated the true variability; the actual standard deviation is 0.053. "
+        "Results are reported with achieved confidence intervals as the primary precision "
+        "indicator.")
 
     heading2(doc, "7.5  Statistical analysis")
     body(doc, "The following procedures were applied to the simulation output:")
     bullet(doc,
         "95% confidence intervals for the mean of W and all KPIs per configuration, "
-        "using the t-distribution with n−1 = 89 degrees of freedom (Law, 2015).")
+        "using the t-distribution with n−1 = 56 degrees of freedom (Law, 2015).")
     bullet(doc,
         "Blocked factorial ANOVA on replication-level output, with the replication index "
         "as a blocking factor (model: W ~ C(n_urgent) × C(strategy) × C(rule) + C(rep_id)). "
@@ -661,35 +660,34 @@ def build():
         "exploiting the positive correlation induced by CRN (Law, 2015).")
     bullet(doc,
         "Planned CRN paired comparisons between configurations of primary interest "
-        "(n=12 vs n=10 under the same strategy and rule; all four rules at n=12, S2), "
-        "without Bonferroni adjustment because these are a priori planned contrasts "
-        "(Montgomery, 2017). Rule-level comparisons within n=12, S2 use Bonferroni "
-        "correction for three simultaneous tests (R4 vs R1, R2, R3).")
+        "(n=12 vs n=11 and n=13 at S3, R2; strategy comparison S3 vs S2 at n=12, R2), "
+        "with Bonferroni correction for the number of planned comparisons within each "
+        "group (Montgomery, 2017).")
     bullet(doc,
-        "Familywise Bonferroni correction (×71) for the 71 vs-baseline comparisons, "
-        "significance threshold αᴮ = 0.05/71 ≈ 0.0007 (Montgomery, 2017).")
+        "Familywise Bonferroni correction (×131) for the 131 vs-baseline comparisons, "
+        "significance threshold αᴮ = 0.05/131 ≈ 0.000382 (Montgomery, 2017).")
 
     heading2(doc, "7.6  Results")
     body(doc,
         "The baseline configuration (n_urgent = 14, Strategy 1, Rule 1) achieves "
-        "W = 0.433 (95% CI: [0.421, 0.445]), with AWTₑ = 24.3 hours, SWTᵤ = 155.9 minutes "
-        "(2.60 hours), and OT = 18.1 minutes per open day. "
+        "W = 0.438 (95% CI: [0.424, 0.452]), with AWTₑ = 24.3 hours, SWTᵤ = 158.1 minutes, "
+        "and OT = 18.4 minutes per open day. "
         "Table 4 shows the top-10 configurations ranked by W.")
 
-    # Top-10 table (with SWTₑ column from simulation output)
+    # Top-10 table (updated with new results)
     top10_hdr = ["Rank", "n", "S", "R", "W", "95 % CI", "AWTₑ (h)",
                  "SWTᵤ (min)", "SWTₑ (min)", "OT (min/d)"]
     top10_rows = [
-        ("1",  "12","2","4","0.362","[0.356, 0.368]","17.45","139.4","5.0","23.9"),
-        ("2",  "12","2","2","0.363","[0.356, 0.369]","17.23","140.4","10.8","20.9"),
-        ("3",  "12","2","1","0.364","[0.358, 0.370]","17.47","140.4","4.9","24.9"),
-        ("4",  "12","2","3","0.366","[0.359, 0.372]","17.34","141.7","9.3","22.8"),
-        ("5",  "10","2","2","0.366","[0.362, 0.371]","14.03","152.8","11.3","23.0"),
-        ("6",  "10","2","4","0.367","[0.362, 0.371]","14.24","152.3","4.8","25.8"),
-        ("7",  "10","2","1","0.369","[0.365, 0.373]","14.26","153.4","4.8","26.8"),
-        ("8",  "10","2","3","0.370","[0.366, 0.374]","14.13","154.4","9.3","24.8"),
-        ("9",  "14","2","4","0.377","[0.366, 0.389]","23.94","126.7","5.1","21.9"),
-        ("10", "12","3","2","0.377","[0.371, 0.383]","17.15","148.6","10.3","24.1"),
+        ("1",  "12","3","2","0.333","[0.324, 0.341]","17.4","123.6","11.1","24.5"),
+        ("2",  "13","3","2","0.334","[0.323, 0.344]","20.0","115.8","10.9","23.0"),
+        ("3",  "12","3","4","0.334","[0.326, 0.343]","17.7","123.8","5.3","27.9"),
+        ("4",  "13","3","4","0.334","[0.324, 0.345]","20.2","115.6","5.2","26.5"),
+        ("5",  "12","3","3","0.335","[0.327, 0.344]","17.6","124.7","9.6","26.9"),
+        ("6",  "13","3","3","0.336","[0.326, 0.346]","20.1","116.7","9.5","25.5"),
+        ("7",  "12","3","1","0.337","[0.328, 0.345]","17.7","124.9","5.2","29.0"),
+        ("8",  "11","3","2","0.337","[0.330, 0.343]","15.6","131.7","11.3","25.9"),
+        ("9",  "13","3","1","0.337","[0.326, 0.347]","20.2","116.7","5.2","27.6"),
+        ("10", "11","3","4","0.339","[0.332, 0.345]","15.8","132.2","5.3","29.2"),
     ]
     t4 = doc.add_table(rows=11, cols=10)
     t4.style = 'Table Grid'
@@ -699,51 +697,64 @@ def build():
     for r, row in enumerate(top10_rows, 1):
         for c, v in enumerate(row):
             tbl_cell(t4.rows[r].cells[c], v, size=8)
-    caption(doc, "Table 4. Top-10 configurations by W (90 reps each). "
-            "n = n_urgent, S = strategy, R = rule. Baseline (n=14, S1, R1): W = 0.433. "
+    caption(doc, "Table 4. Top-10 configurations by W (57 reps each). "
+            "n = n_urgent, S = strategy, R = rule. Baseline (n=14, S1, R1): W = 0.438. "
             "SWTᵤ reported in minutes; converted to hours (÷60) for computation of W. "
             "SWTₑ column required for secondary-objective tie-breaking per assignment specification.")
 
     body(doc,
-        "Nine of the top ten configurations use Strategy 2 (uniform spacing), confirming the "
-        "strong effect of timing. The best tested configuration (n_urgent = 12, S2) achieves "
-        "W ∈ [0.362, 0.366] across all four rules — a 16% reduction versus baseline "
-        "(paired CRN t-test: Δ = −0.071, 95% CI [−0.078, −0.064], t(89) = −21.6, "
+        "All ten top configurations use Strategy 3 (after-six placement), confirming the "
+        "strong effect of timing strategy. Strategy 3 achieves the lowest mean SWTᵤ "
+        "(110.3 min averaged across n and rule levels) compared to Strategy 2 (126.7 min) "
+        "and Strategy 1 (151.0 min). The after-six pattern places urgent slots at regular "
+        "intervals within each day (every 7th slot), creating shorter maximum waiting gaps "
+        "for urgent patients than either uniform or end-of-block placement. "
+        "The best tested configuration (n_urgent = 12, S3, R2) achieves W = 0.333 "
+        "(95% CI: [0.324, 0.341]), a 24% reduction versus baseline "
+        "(paired CRN t-test: Δ = −0.105, 95% CI [−0.111, −0.098], t(56) = −31.7, "
         "pᴮ < 0.001), statistically significant after Bonferroni correction. "
-        "The improvement is driven primarily by reducing AWTₑ from 24.3 h to 17.5 h; "
-        "SWTᵤ decreases from 155.9 min to approximately 139 min. "
+        "The improvement is driven by reducing SWTᵤ from 158.1 to 123.6 minutes (−22%) "
+        "and AWTₑ from 24.3 to 17.4 hours (−28%). "
         "Note that CRN induces very high statistical power: even operationally negligible "
         "W differences (Δ < 0.005) yield highly significant p-values; practical significance "
         "should be judged from the magnitude of differences, not p-values alone.")
 
     body(doc,
+        "Of the 131 non-baseline configurations, 66 significantly outperform the baseline "
+        "(Bonferroni-corrected pᴮ < 0.000382), 50 are significantly worse, and 15 show no "
+        "statistically significant difference. All significantly better configurations use "
+        "either Strategy 2 or Strategy 3 with n_urgent ≤ 15. All significantly worse "
+        "configurations have n_urgent ≥ 16, driven by elective slot shortage and the "
+        "resulting growth in AWTₑ.")
+
+    body(doc,
         "Blocked factorial ANOVA results (model: W ~ C(n_urgent)×C(strategy)×C(rule) + "
-        "C(rep_id); R² = 0.775): n_urgent is the dominant factor (F(5, 6319) = 3169.7, "
-        "p < 0.001, η² = 0.564). Strategy is significant (F(2, 6319) = 61.4, p < 0.001, "
-        "η² = 0.004). The appointment scheduling rule has no statistically significant "
-        "effect on W (F(3, 6319) = 0.232, p = 0.874). No two-way interaction is significant "
-        "(n_urgent × strategy: F(10, 6319) = 1.78, p = 0.059). The CRN replication block "
-        "accounts for 20.5% of total variance (F(89, 6319) = 64.8, p < 0.001), confirming "
+        "C(rep_id); R² = 0.786): n_urgent is the dominant factor (F(10, 7336) = 1985.4, "
+        "p < 0.001, η² = 0.578). Strategy is significant (F(2, 7336) = 239.7, p < 0.001, "
+        "η² = 0.014). The appointment scheduling rule has no statistically significant "
+        "effect on W (F(3, 7336) = 0.400, p = 0.753). No two-way interaction is significant "
+        "(n_urgent × strategy: F(20, 7336) = 0.371, p = 0.995). The CRN replication block "
+        "accounts for 19.4% of total variance (F(56, 7336) = 119.1, p < 0.001), confirming "
         "that CRN induced substantial positive correlation across configurations and justified "
-        "its use. The R² of 0.775 indicates that the experimental factors and CRN block "
-        "explain 78% of variance in W; residual stochastic noise supports the use of "
-        "confidence intervals and paired comparisons as primary inference tools. "
+        "its use. Residual stochastic noise supports the use of confidence intervals and "
+        "paired comparisons as primary inference tools. "
         "All configurations with n_urgent ≥ 16 perform significantly worse than the "
         "baseline due to elective backlog caused by reduced elective slot capacity.")
 
-    heading2(doc, "7.6a  n = 12 vs n = 10: planned comparison")
+    heading2(doc, "7.6a  Optimal n_urgent: planned comparison")
     body(doc,
-        "Because n_urgent = 12 has the lowest mean W but n_urgent = 10 is the next best "
-        "capacity level, a planned CRN paired comparison was performed (no Bonferroni "
-        "adjustment, as this is an a priori contrast):")
+        "The top-10 table shows that n=12 and n=13 both appear frequently, while n=11 "
+        "appears less. A planned CRN paired comparison at Strategy 3, Rule 2 was performed "
+        "to determine the optimal n_urgent (Bonferroni adjustment ×3 for three comparisons):")
 
-    # n=12 vs n=10 comparison table
-    cmp_hdr = ["Comparison", "ΔW (mean)", "95% CI", "t(89)", "p-value"]
+    # n comparison table
+    cmp_hdr = ["Comparison", "ΔW (mean)", "95% CI", "t(56)", "p-value", "pᴮ (×3)"]
     cmp_rows = [
-        ("n=12,S2,R4 vs n=10,S2,R4", "−0.0048", "[−0.0072, −0.0023]", "−3.85", "0.0002"),
-        ("n=12,S2,R4 vs n=10,S2,R2", "−0.0045", "[−0.0069, −0.0020]", "−3.59", "0.0005"),
+        ("n=12,S3,R2 vs n=11,S3,R2", "−0.0038", "[−0.0056, −0.0019]", "−4.13", "0.00012", "0.00037"),
+        ("n=12,S3,R2 vs n=13,S3,R2", "−0.0007", "[−0.0029, +0.0016]", "−0.62",  "0.541",   "1.000"),
+        ("n=12,S3,R2 vs n=10,S3,R2", "−0.0096", "[−0.0128, −0.0063]", "−5.92", "< 0.001",  "< 0.001"),
     ]
-    t_cmp = doc.add_table(rows=3, cols=5)
+    t_cmp = doc.add_table(rows=4, cols=6)
     t_cmp.style = 'Table Grid'
     t_cmp.alignment = WD_TABLE_ALIGNMENT.CENTER
     for c, h in enumerate(cmp_hdr):
@@ -751,33 +762,38 @@ def build():
     for r, row in enumerate(cmp_rows, 1):
         for c, v in enumerate(row):
             tbl_cell(t_cmp.rows[r].cells[c], v, size=8)
-    caption(doc, "Table 5. Planned CRN paired comparisons: n=12 vs n=10 (W). "
-            "ΔW = W(n=12) − W(n=10). No multiplicity adjustment (planned contrasts).")
+    caption(doc, "Table 5. Planned CRN paired comparisons for n_urgent at S3, R2. "
+            "ΔW = W(n=12) − W(comparison). Bonferroni adjustment ×3. "
+            "n=12 and n=13 are statistically indistinguishable (pᴮ = 1.000).")
 
     body(doc,
-        "n=12 has the lowest estimated W among all tested levels. The difference from n=10 "
-        "is statistically significant (p < 0.005 for both planned comparisons), though the "
-        "magnitude is small (Δ ≈ 0.005). This supports selecting n=12 over n=10 on the "
-        "primary objective, noting that n=10 delivers substantially lower AWTₑ "
-        "(≈ 14.1 h vs 17.5 h) at the cost of higher SWTᵤ (≈ 153 min vs 140 min).")
+        "n=12 is significantly better than n=11 (p = 0.00012, pᴮ = 0.00037) and n=10 "
+        "(pᴮ < 0.001), but not significantly different from n=13 (p = 0.54). "
+        "The W difference between n=12 and n=13 is negligible (Δ = 0.0007). "
+        "However, there is an important trade-off: n=12 achieves AWTₑ = 17.4 h and "
+        "SWTᵤ = 123.6 min, while n=13 achieves AWTₑ = 20.0 h and SWTᵤ = 115.8 min. "
+        "Since the primary objective W is identical, n=12 is preferred because it delivers "
+        "substantially shorter appointment waiting times for elective patients (AWTₑ 2.6 hours "
+        "lower), at only a modest increase in SWTᵤ (7.8 minutes). "
+        "This supports selecting n=12 as the recommended capacity level.")
 
     heading2(doc, "7.6b  Appointment-rule selection: secondary objectives")
     body(doc,
         "The blocked ANOVA confirms that appointment rule has no significant effect on W "
-        "(p = 0.874). CRN-paired comparisons within n=12, S2 reveal statistically significant "
-        "W differences between rules (Bonferroni ×3), but the magnitudes are negligible "
-        "(Δ(W) ≤ 0.004). The secondary objectives SWTₑ and OT therefore determine the "
+        "(p = 0.753). CRN-paired comparisons within n=12, S3 reveal statistically significant "
+        "W differences between rules (Bonferroni ×3), but the magnitudes are small "
+        "(max Δ(W) = 0.004). The secondary objectives SWTₑ and OT therefore support the "
         "appointment-rule recommendation:")
 
-    # Rule comparison table
-    rule_hdr = ["Rule", "W (mean)", "SWTₑ (min)", "OT (min/d)", "ΔW vs R4*", "p_adj†"]
+    # Rule comparison table at n=12, S3
+    rule_hdr = ["Rule", "W (mean)", "SWTₑ (min)", "SWTᵤ (min)", "OT (min/d)", "ΔW vs R2*", "pᴮ (×3)†"]
     rule_rows = [
-        ("R1 FCFS",          "0.364", "4.9", "24.9", "+0.0019", "< 0.001"),
-        ("R2 Bailey-Welch",  "0.363", "10.8","20.9", "+0.0006", "< 0.001"),
-        ("R3 Blocking",      "0.366", "9.3", "22.8", "+0.0035", "< 0.001"),
-        ("R4 Benchmark",     "0.362", "5.0", "23.9", "—",       "—"),
+        ("R1 FCFS",          "0.337", "5.2",  "124.9", "29.0", "+0.0037", "< 0.001"),
+        ("R2 Bailey-Welch",  "0.333", "11.1", "123.6", "24.5", "—",       "—"),
+        ("R3 Blocking",      "0.335", "9.6",  "124.7", "26.9", "+0.0025", "< 0.001"),
+        ("R4 Benchmark",     "0.334", "5.3",  "123.8", "27.9", "+0.0016", "< 0.001"),
     ]
-    t_rule = doc.add_table(rows=5, cols=6)
+    t_rule = doc.add_table(rows=5, cols=7)
     t_rule.style = 'Table Grid'
     t_rule.alignment = WD_TABLE_ALIGNMENT.CENTER
     for c, h in enumerate(rule_hdr):
@@ -785,21 +801,23 @@ def build():
     for r, row in enumerate(rule_rows, 1):
         for c, v in enumerate(row):
             tbl_cell(t_rule.rows[r].cells[c], v, size=8)
-    caption(doc, "Table 6. Appointment rules at n=12, Strategy 2 (90 reps, CRN). "
-            "* ΔW = W(rule) − W(R4); † Bonferroni-adjusted p-value (×3). "
-            "SWTₑ and OT serve as secondary tie-breakers when W differences are negligible.")
+    caption(doc, "Table 6. Appointment rules at n=12, Strategy 3 (57 reps, CRN). "
+            "* ΔW = W(rule) − W(R2); † Bonferroni-adjusted p-value (×3). "
+            "R2 achieves the lowest W, lowest SWTᵤ, and lowest OT. "
+            "R1 and R4 achieve lower SWTₑ at the cost of higher W and OT.")
 
     body(doc,
-        "Rule 4 (Benchmark) achieves the lowest W (0.362) and is the primary recommended "
-        "appointment rule. The W differences across rules are negligible (max Δ = 0.004; "
-        "ANOVA: F(3, 6319) = 0.232, p = 0.874). If secondary objectives are used as "
-        "tie-breakers: Rule 1 is preferred when SWTₑ is prioritised (4.9 vs 5.0 min for "
-        "Rule 4; Δ = −0.095 min, p < 0.001, statistically significant under CRN but "
-        "operationally negligible), while Rule 2 is preferred if overtime is prioritised "
-        "(20.9 vs 23.9 min/day for Rule 4; Δ = −2.96 min/day, p < 0.001). "
-        "The recommended configuration is therefore n_urgent = 12, Strategy 2, Rule 4. "
-        "Rule 1 (FCFS) is an acceptable alternative if minimising SWTₑ is the department's "
-        "secondary priority; Rule 2 (Bailey-Welch) if minimising overtime is preferred.")
+        "Rule 2 (Bailey-Welch) achieves the lowest W (0.333) and also the lowest overtime "
+        "(24.5 min/day) and lowest SWTᵤ (123.6 min). The W differences across rules are "
+        "statistically significant after Bonferroni correction but operationally small "
+        "(max Δ = 0.004; ANOVA: F(3, 7336) = 0.400, p = 0.753). The drawback of Rule 2 "
+        "is higher SWTₑ (11.1 min) versus Rules 1 and 4 (~5.2 min), because Bailey-Welch "
+        "deliberately schedules early patients at session start, creating intentional "
+        "overlap. If minimising elective scan queue time is the department's secondary "
+        "priority, Rule 1 (FCFS) or Rule 4 (Benchmark) are preferable alternatives. "
+        "The recommended configuration is therefore n_urgent = 12, Strategy 3, Rule 2. "
+        "Rule 1 or Rule 4 are acceptable alternatives if minimising SWTₑ is the "
+        "department's secondary priority.")
 
     fig(doc, "main_effects_plot.png", w=5.5,
         cap="Figure 2. Main effects of n_urgent, strategy, and appointment rule on W")
@@ -816,44 +834,56 @@ def build():
     body(doc,
         "This study investigated the best appointment scheduling configuration for a "
         "single-server outpatient radiology department using a discrete-event simulation "
-        "model. A full factorial experiment over 72 configurations with 90 replications "
+        "model. A full factorial experiment over 132 configurations with 57 replications "
         "per configuration provided performance estimates meeting the pilot-formula precision "
-        "criterion (achieved relative precision 2.67%, within the 5% target). "
+        "criterion (achieved relative precision 3.23%, within the 5% target). "
         "Common Random Numbers ensured low-variance pairwise comparisons, and a "
         "20-week Welch warm-up removed initial transient bias.")
 
     body(doc,
-        "Among the 72 tested configurations, the lowest estimated W is achieved by "
-        "configurations with n_urgent = 12 and uniform spacing (Strategy 2), with "
-        "W ∈ [0.362, 0.366] depending on the appointment rule. This represents a "
-        "16% reduction versus the baseline (W = 0.433), statistically significant "
-        "after Bonferroni correction (Δ = −0.071, pᴮ < 0.001). The appointment "
-        "scheduling rule does not significantly affect W (ANOVA: F(3, 6319) = 0.232, "
-        "p = 0.874). Rule selection therefore depends on secondary objectives: Rule 1 "
-        "(FCFS) achieves the lowest SWTₑ (4.9 min), while Rule 2 (Bailey-Welch) achieves "
-        "the lowest overtime (20.9 min/day). Rule 4 (Benchmark) achieves the lowest point "
-        "estimate of W (0.362) with SWTₑ = 5.0 min and OT = 23.9 min/day. "
-        "The recommended configuration is n_urgent = 12, Strategy 2, Rule 4. "
-        "Rule 1 (FCFS) is an acceptable alternative if the department prioritises SWTₑ; "
-        "Rule 2 (Bailey-Welch) is acceptable if overtime reduction is the secondary priority.")
+        "Among the 132 tested configurations, the lowest estimated W is achieved by "
+        "n_urgent = 12 with after-six spacing (Strategy 3) and Bailey-Welch scheduling "
+        "(Rule 2), with W = 0.333 (95% CI: [0.324, 0.341]). This represents a 24% reduction "
+        "versus the baseline (W = 0.438), statistically significant after Bonferroni correction "
+        "(Δ = −0.105, pᴮ < 0.001). The improvement is driven by reducing both AWTₑ (24.3 → "
+        "17.4 hours, −28%) and SWTᵤ (158.1 → 123.6 minutes, −22%). "
+        "The appointment scheduling rule does not significantly affect W (ANOVA: "
+        "F(3, 7336) = 0.400, p = 0.753). Rule 2 (Bailey-Welch) is recommended because it "
+        "also achieves the lowest overtime (24.5 min/day). Rule 1 (FCFS) or Rule 4 "
+        "(Benchmark) are acceptable alternatives if minimising SWTₑ (~5.2 min vs 11.1 min "
+        "for Rule 2) is the department's secondary priority. "
+        "The recommended configuration is n_urgent = 12, Strategy 3, Rule 2.")
 
     body(doc,
-        "Three conclusions follow from the experiment. First, n_urgent is the dominant "
-        "factor (η² = 0.564): the current baseline allocates 14 urgent slots, which is two "
-        "more than the best tested level. Reducing to 12 urgent slots improves AWTₑ from "
-        "24.3 to 17.5 hours while keeping SWTᵤ at approximately 140 minutes — a favourable "
-        "trade-off. A planned CRN comparison shows n=12 is significantly better than n=10 "
-        "(p < 0.002), though the W difference is small (Δ ≈ 0.005). "
-        "Second, uniform spacing (Strategy 2) outperforms end-of-block and after-six placement "
-        "(η² = 0.004) by reducing the maximum intra-day gap between urgent slots. "
+        "Three conclusions follow from the experiment. "
+        "First, n_urgent is the dominant factor (η² = 0.578): the current baseline allocates "
+        "14 urgent slots, which is two more than the best tested level. Reducing to 12 urgent "
+        "slots improves AWTₑ from 24.3 to 17.4 hours while keeping SWTᵤ at 123.6 minutes — "
+        "a favourable trade-off. n=12 and n=13 are statistically indistinguishable on W "
+        "(Δ = 0.0007, p = 0.54), but n=12 is preferred because it delivers 2.6 hours lower "
+        "AWTₑ with only 7.8 minutes higher SWTᵤ. "
+        "Second, after-six spacing (Strategy 3) outperforms both uniform (Strategy 2) and "
+        "end-of-block (Strategy 1) placement (η² = 0.014; Strategy 3 mean W = 0.489 vs "
+        "0.520 for S2 and 0.568 for S1). The after-six pattern creates shorter maximum "
+        "intra-day gaps between urgent slots, reducing SWTᵤ by 16.4 minutes on average "
+        "compared to uniform spacing and 40.7 minutes compared to end-of-block. "
         "Third, the appointment scheduling rule does not affect the primary objective W "
         "(η² ≈ 0), confirming the appointment-rule hypothesis.")
 
     body(doc,
+        "Regarding hypothesis outcomes: the main hypothesis is confirmed (66 of 131 "
+        "non-baseline configurations are significantly better after Bonferroni correction). "
+        "The capacity hypothesis is confirmed: W decreases as n_urgent decreases from 20 to "
+        "12, but increases again for n_urgent < 12 (n=11 is significantly worse than n=12), "
+        "identifying n=12 as the optimal level. The timing strategy hypothesis is confirmed "
+        "in direction (Strategies 2 and 3 both outperform Strategy 1), with the additional "
+        "finding that Strategy 3 outperforms Strategy 2 — an outcome not anticipated in "
+        "the original hypothesis. The appointment-rule hypothesis is confirmed.")
+
+    body(doc,
         "The main limitation is the high estimated server utilisation (ρ ≈ 0.97 at baseline), "
         "which causes persistent oscillations and makes the warm-up cutoff approximate. "
-        "Configurations with n_urgent ≥ 18 are expected to result in utilisation ρ ≥ 1.0 "
-        "based on analytical capacity estimates; these have no steady state "
+        "Configurations with n_urgent ≥ 18 appear to approach or exceed ρ = 1.0 "
         "and are excluded from recommendations. Future work could explore demand smoothing, "
         "extended operating hours, or priority queue disciplines for urgent patients.")
 
@@ -894,7 +924,7 @@ def build():
     heading_appendix(doc, "Appendix A – Additional plots")
 
     fig(doc, "pareto_tradeoff.png", w=5.5,
-        cap="Figure A1. Pareto trade-off between AWTₑ and SWTᵤ across all 72 configurations")
+        cap="Figure A1. Pareto trade-off between AWTₑ and SWTᵤ across all 132 configurations")
     fig(doc, "interaction_plot.png", w=5.5,
         cap="Figure A2. Interaction effects between n_urgent and strategy on W")
     fig(doc, "heatmap_objective.png", w=5.5,

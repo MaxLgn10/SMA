@@ -2,16 +2,16 @@
 Blocked Factorial ANOVA - Weighted Objective W
 ============================================================
 Model: W ~ C(n_urgent) * C(strategy) * C(rule) + C(replication_id)
-                                     sum_sq      df            F        PR(>F)    eta_sq
-C(n_urgent)                      344.749295     5.0  3169.674413  0.000000e+00  0.564448
-C(strategy)                        2.669999     2.0    61.370890  4.004189e-27  0.004372
-C(rule)                            0.015163     3.0     0.232354  8.738905e-01  0.000025
-C(replication_id)                125.472903    89.0    64.809879  0.000000e+00  0.205433
-C(n_urgent):C(strategy)            0.387399    10.0     1.780900  5.851803e-02  0.000634
-C(n_urgent):C(rule)                0.000844    15.0     0.002585  1.000000e+00  0.000001
-C(strategy):C(rule)                0.018853     6.0     0.144448  9.901586e-01  0.000031
-C(n_urgent):C(strategy):C(rule)    0.000830    30.0     0.001272  1.000000e+00  0.000001
-Residual                         137.457070  6319.0          NaN           NaN  0.225055
+                                           sum_sq      df            F         PR(>F)
+C(n_urgent_c)                          332.144769    10.0  1985.427122   0.000000e+00
+C(strategy_c)                            8.019465     2.0   239.685608  1.464274e-101
+C(rule_c)                                0.020077     3.0     0.400047   7.529746e-01
+C(replication_c)                       111.534724    56.0   119.055264   0.000000e+00
+C(n_urgent_c):C(strategy_c)              0.123987    20.0     0.370573   9.950768e-01
+C(n_urgent_c):C(rule_c)                  0.001248    30.0     0.002486   1.000000e+00
+C(strategy_c):C(rule_c)                  0.029901     6.0     0.297892   9.381582e-01
+C(n_urgent_c):C(strategy_c):C(rule_c)    0.001048    60.0     0.001044   1.000000e+00
+Residual                               122.724929  7336.0          NaN            NaN
 
-R^2 = 0.7749
-Adj-R^2 = 0.7692
+R^2 = 0.7864
+Adj-R^2 = 0.7810
