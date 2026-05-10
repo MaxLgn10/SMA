@@ -11,7 +11,7 @@ from src.schedule_builder import (
 )
 
 BUILDER = ScheduleBuilder()
-N_URGENT_VALUES = [10, 12, 14, 16, 18, 20]
+N_URGENT_VALUES = list(range(10, 21))
 STRATEGIES = [1, 2, 3]
 
 
@@ -94,23 +94,33 @@ def test_strategy1_urgent_at_end_of_block():
 
 # ---- Strategy 3 specifics ----
 
-def test_strategy3_pattern_eeeeeeue():
-    """Strategy 3: flat pattern should repeat EEEEEEU (6 elective then 1 urgent)."""
+def test_strategy3_per_day_pattern():
+    """Strategy 3: within each day urgents appear after every 6 elective slots (Figure 6)."""
     for n_urgent in N_URGENT_VALUES:
         schedule = BUILDER.build(n_urgent, 3)
-        flat = []
         for day in range(6):
-            flat.extend(schedule[day])
-        # First n_urgent blocks of 7 should each have urgent at position 6
-        for i in range(n_urgent):
-            block = flat[i * 7: i * 7 + 7]
-            assert block[6] == SlotType.URGENT, (
-                f"n_urgent={n_urgent}: block {i} last slot not urgent"
-            )
-            assert all(t == SlotType.ELECTIVE for t in block[:6])
-        # Remaining slots should all be elective
-        remaining = flat[n_urgent * 7:]
-        assert all(t == SlotType.ELECTIVE for t in remaining)
+            slots = schedule[day]
+            n_u = sum(1 for t in slots if t == SlotType.URGENT)
+            for i in range(n_u):
+                assert slots[i * 7 + 6] == SlotType.URGENT, (
+                    f"n_urgent={n_urgent}, day={day}: urgent not at pos {i * 7 + 6}"
+                )
+                assert all(t == SlotType.ELECTIVE for t in slots[i * 7: i * 7 + 6])
+            for pos in range(n_u * 7, DAY_SLOTS[day]):
+                assert slots[pos] == SlotType.ELECTIVE
+
+
+def test_strategy3_matches_reference_n14():
+    """n=14: Mon/Tue/Wed/Fri get 3 urgents at 0-indexed positions 6,13,20; Thu/Sat get 1 at 6."""
+    schedule = BUILDER.build(14, 3)
+    for day in [0, 1, 2, 4]:  # Mon Tue Wed Fri
+        assert schedule[day][6] == SlotType.URGENT
+        assert schedule[day][13] == SlotType.URGENT
+        assert schedule[day][20] == SlotType.URGENT
+    for day in [3, 5]:  # Thu Sat (half days)
+        assert schedule[day][6] == SlotType.URGENT
+        n_u = sum(1 for t in schedule[day] if t == SlotType.URGENT)
+        assert n_u == 1
 
 
 # ---- Strategy 2 specifics ----

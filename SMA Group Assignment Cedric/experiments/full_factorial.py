@@ -33,7 +33,7 @@ from src.simulation import run_replication
 
 RESULTS_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "results")
 
-N_URGENT_LEVELS = [10, 12, 14, 16, 18, 20]
+N_URGENT_LEVELS = list(range(10, 21))
 STRATEGY_LEVELS = [1, 2, 3]
 RULE_LEVELS = [1, 2, 3, 4]
 

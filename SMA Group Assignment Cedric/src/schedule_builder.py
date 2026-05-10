@@ -175,30 +175,32 @@ class ScheduleBuilder:
         return day_slots
 
     # ------------------------------------------------------------------
-    # Strategy 3: one urgent slot after every 6 elective slots (flat week)
+    # Strategy 3: one urgent slot after every 6 elective slots (per day)
     # ------------------------------------------------------------------
     def _strategy_after_six(self, n_urgent: int) -> Dict[int, List[SlotType]]:
         """
-        Build a flat week sequence with pattern EEEEEEUE... (1 urgent after every 6 elective),
-        then map back to per-day slot lists.
-        The remaining slots after the last full block are all elective.
+        Distribute n_urgent proportionally per day (same method as Strategy 1),
+        then within each day place one urgent slot after every 6 consecutive
+        elective slots. The count runs continuously within the day — through
+        the lunch break — and resets at each day boundary, matching Figure 6:
+        urgent slots land at positions 7, 14, 21, 28 (1-indexed) for a full
+        day with 4 urgents.
         """
-        flat: List[SlotType] = []
-        for _ in range(n_urgent):
-            flat.extend([SlotType.ELECTIVE] * 6)
-            flat.append(SlotType.URGENT)
-        # fill remaining with elective
-        while len(flat) < WEEK_TOTAL_SLOTS:
-            flat.append(SlotType.ELECTIVE)
-        flat = flat[:WEEK_TOTAL_SLOTS]
+        day_urgent = _proportional_distribute(
+            {d: DAY_SLOTS[d] for d in range(6)}, n_urgent
+        )
 
-        # map flat list to per-day structure
         day_slots: Dict[int, List[SlotType]] = {}
-        idx = 0
         for day in range(6):
-            n = DAY_SLOTS[day]
-            day_slots[day] = flat[idx: idx + n]
-            idx += n
+            n_u = day_urgent[day]
+            n_total = DAY_SLOTS[day]
+            slots: List[SlotType] = []
+            for _ in range(n_u):
+                slots.extend([SlotType.ELECTIVE] * 6)
+                slots.append(SlotType.URGENT)
+            while len(slots) < n_total:
+                slots.append(SlotType.ELECTIVE)
+            day_slots[day] = slots[:n_total]
 
         assert sum(t == SlotType.URGENT for d in day_slots for t in day_slots[d]) == n_urgent
         return day_slots

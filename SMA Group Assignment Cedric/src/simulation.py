@@ -48,6 +48,10 @@ from src.schedule_builder import (
     slot_start_offset,
 )
 
+# Minutes from day-open (08:00) to start and end of lunch on full days
+_LUNCH_START = 240.0   # 12:00
+_LUNCH_END   = 300.0   # 13:00
+
 
 class _RadiologyDept:
     """
@@ -86,6 +90,25 @@ class _RadiologyDept:
 
         # Day tracking for overtime: (week, day) -> max scan_end seen so far
         self._day_max_end: Dict[Tuple[int, int], float] = defaultdict(float)
+
+    # ------------------------------------------------------------------
+    # Lunch-break guard
+    # ------------------------------------------------------------------
+
+    def _next_scan_start(self, t: float) -> float:
+        """Earliest time a scan can start on or after t.
+
+        On full days, the window [12:00, 13:00) is blocked: a patient who
+        acquires the scanner during lunch must wait until 13:00.
+        Half-day lunch is not an issue (department closes at 12:00).
+        """
+        t_in_week = t % WEEK_MINUTES
+        day = int(t_in_week // 1440)
+        t_in_day = t_in_week - day * 1440   # minutes since this day's 08:00
+        if day not in HALF_DAYS and _LUNCH_START <= t_in_day < _LUNCH_END:
+            week = int(t // WEEK_MINUTES)
+            return week * WEEK_MINUTES + day * 1440 + _LUNCH_END
+        return t
 
     # ------------------------------------------------------------------
     # Elective call generator
@@ -170,6 +193,9 @@ class _RadiologyDept:
 
         with self.scanner.request() as req:
             yield req
+            lunch_wait = self._next_scan_start(self.env.now) - self.env.now
+            if lunch_wait > 0:
+                yield self.env.timeout(lunch_wait)
             patient.scan_start = self.env.now
             yield self.env.timeout(patient.scan_duration)
             patient.scan_end = self.env.now
@@ -266,6 +292,9 @@ class _RadiologyDept:
 
         with self.scanner.request() as req:
             yield req
+            lunch_wait = self._next_scan_start(self.env.now) - self.env.now
+            if lunch_wait > 0:
+                yield self.env.timeout(lunch_wait)
             patient.scan_start = self.env.now
             yield self.env.timeout(patient.scan_duration)
             patient.scan_end = self.env.now

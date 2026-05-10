@@ -38,7 +38,7 @@ sns.set_theme(style="whitegrid", palette="muted")
 def plot_main_effects(summary_df: pd.DataFrame):
     fig, axes = plt.subplots(1, 3, figsize=(15, 5))
     factors = [
-        ("n_urgent",  "Urgent slots / week",          [10, 12, 14, 16, 18, 20]),
+        ("n_urgent",  "Urgent slots / week",          list(range(10, 21))),
         ("strategy",  "Timing strategy",               [1, 2, 3]),
         ("rule",      "Appointment rule",              [1, 2, 3, 4]),
     ]
@@ -295,7 +295,7 @@ def plot_lines_per_strategy(summary_df: pd.DataFrame):
                             alpha=0.15, color=colors[s])
         ax.set_xlabel("Urgent slots / week")
         ax.set_ylabel(ylabel)
-        ax.set_xticks([10, 12, 14, 16, 18, 20])
+        ax.set_xticks(list(range(10, 21)))
         ax.legend(title="Strategy")
         ax.grid(True, alpha=0.3)
 

@@ -59,7 +59,7 @@ def compute_appointment_time(
         # First K patients of the session share session start; others get slot_start - 15
         if slot_in_session < K_BAILEY_WELCH:
             return session_abs_start
-        return slot_abs_start - SLOT_DURATION
+        return max(slot_abs_start - SLOT_DURATION, session_abs_start)
 
     elif rule == AppointmentRule.BLOCKING:
         # Pairs (0,1), (2,3), ... share the start of the first slot in the pair.
