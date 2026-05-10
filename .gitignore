@@ -31,5 +31,15 @@
 *.out
 *.app
 
+# Lecture slides (large PDFs, not source code)
+Lectures /
+
+# Warm-up exercises (local reference only)
+Exercise10_Car_Rental/
+Exercise12_Kids_Line/
+
+# Claude Code context file (local only)
+CLAUDE.md
+
 # Excluded folders
 voorbeelden/

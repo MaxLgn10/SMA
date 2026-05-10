@@ -1,0 +1,23 @@
+# macOS system files
+.DS_Store
+
+# IDE files
+.idea/
+__pycache__/
+*.pyc
+
+# PDFs (large files, not source code)
+*.pdf
+
+# Excel files
+*.xlsx
+
+# Previous year solutions (reference material only)
+solutions previous year/
+
+# Compiled C++ binary
+project assignment/cpp code/simulation
+project assignment/cpp code/*.o
+
+# Generated output files
+project assignment/output-movingAvg.txt
