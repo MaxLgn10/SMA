@@ -139,11 +139,12 @@ def load_replication_stdevs(results_dir: str) -> dict[tuple, float]:
 
 def is_dominated(row: dict, others: list[dict], objectives: list[str]) -> bool:
     """Return True if `row` is dominated by any configuration in `others`."""
+    eps = 1e-9
     for other in others:
         if other is row:
             continue
-        if all(other[o] <= row[o] for o in objectives) and \
-           any(other[o] <  row[o] for o in objectives):
+        if all(other[o] <= row[o] + eps for o in objectives) and \
+           any(other[o] <  row[o] - eps for o in objectives):
             return True
     return False
 

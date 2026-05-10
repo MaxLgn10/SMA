@@ -163,21 +163,33 @@ class Simulation:
                         counter += 1
                         arrivalTimeNext += Exponential_distribution(self.lambdaElective) * (17 - 8)
 
-                # Urgent: half-day on Thu(3) and Sat(5)
-                lmbd    = self.lambdaUrgent[0]
-                endTime = 17
+                # Urgent: half-day on Thu(3) and Sat(5), lunch break excluded on full days
+                # Assignment: "No urgent arrivals during the lunch break"
                 if d in (3, 5):
-                    lmbd    = self.lambdaUrgent[1]
-                    endTime = 12
-                arrivalTimeNext = 8 + Exponential_distribution(lmbd) * (endTime - 8)
-                while arrivalTimeNext < endTime:
-                    scanType = self.getRandomScanType()
-                    duration = Normal_distribution(self.meanUrgentDuration[scanType],
-                                                  self.stdevUrgentDuration[scanType]) / 60
-                    self.patients.append(
-                        Patient(counter, 2, scanType, w, d, arrivalTimeNext, 0, False, duration))
-                    counter += 1
-                    arrivalTimeNext += Exponential_distribution(lmbd) * (endTime - 8)
+                    # half day: single window 8:00-12:00
+                    lmbd = self.lambdaUrgent[1]
+                    arrivalTimeNext = 8 + Exponential_distribution(lmbd) * 4
+                    while arrivalTimeNext < 12:
+                        scanType = self.getRandomScanType()
+                        duration = Normal_distribution(self.meanUrgentDuration[scanType],
+                                                      self.stdevUrgentDuration[scanType]) / 60
+                        self.patients.append(
+                            Patient(counter, 2, scanType, w, d, arrivalTimeNext, 0, False, duration))
+                        counter += 1
+                        arrivalTimeNext += Exponential_distribution(lmbd) * 4
+                else:
+                    # full day: two windows 8:00-12:00 and 13:00-17:00, skip lunch
+                    lmbd = self.lambdaUrgent[0]
+                    for start, end in ((8, 12), (13, 17)):
+                        arrivalTimeNext = start + Exponential_distribution(lmbd) * (end - start)
+                        while arrivalTimeNext < end:
+                            scanType = self.getRandomScanType()
+                            duration = Normal_distribution(self.meanUrgentDuration[scanType],
+                                                          self.stdevUrgentDuration[scanType]) / 60
+                            self.patients.append(
+                                Patient(counter, 2, scanType, w, d, arrivalTimeNext, 0, False, duration))
+                            counter += 1
+                            arrivalTimeNext += Exponential_distribution(lmbd) * (end - start)
 
     def getRandomScanType(self) -> int:
         r = random.random()
@@ -608,31 +620,39 @@ class Simulation:
 
 if __name__ == "__main__":
 
+    # Total weeks = warm-up + active
     W = WARMUP_WEEKS + 100
     R = 1000
 
-    # ── Single test run ── COMMENT THIS OUT ──────────────────────────────
-    # INPUT_FILE = os.path.join(os.path.dirname(__file__), "..", "input-S1-14.txt")
-    # sim = Simulation(INPUT_FILE, W, R, rule=1)
-    # sim.runSimulations(
-    #     out_csv  = os.path.join(RESULTS_DIR, "replication_analysis_S1N14R1.csv"),
-    #     strategy = 1,
-    #     n_urgent = 14,
-    # )
+    # ── Single test run ────────────────────────────────────────────────────
+    # Verify everything works before launching the full experiment.
+    # Comment this block out once confirmed working.
 
-    # ── Full experiment ── UNCOMMENT THIS ────────────────────────────────
-    RULES = [1, 2, 3, 4, 5, 6, 7]
+    INPUT_FILE = os.path.join(os.path.dirname(__file__), "..", "input-S1-14.txt")
 
-    for strategy in [1, 2, 3]:
-        for n_urgent in range(10, 21):
-            input_file = os.path.join(
-                os.path.dirname(__file__), "..", f"input-S{strategy}-{n_urgent}.txt")
-            for rule in RULES:
-                tag = f"S{strategy}N{n_urgent}R{rule}"
-                print(f"\n{'=' * 60}\nRunning {tag}\n{'=' * 60}")
-                sim = Simulation(input_file, W, R, rule)
-                sim.runSimulations(
-                    out_csv  = os.path.join(RESULTS_DIR, f"replication_analysis_{tag}.csv"),
-                    strategy = strategy,
-                    n_urgent = n_urgent,
-                )
+    sim = Simulation(INPUT_FILE, W, R, rule=1)
+    sim.runSimulations(
+        out_csv  = os.path.join(RESULTS_DIR, "replication_analysis_S1N14R1.csv"),
+        strategy = 1,
+        n_urgent = 14,
+    )
+
+    # ── Full experiment ────────────────────────────────────────────────────
+    # Runs all strategies x all N x all rules (including extended BW K=3,4,5).
+    # Uncomment when ready — this will take a while.
+    #
+    # RULES = [1, 2, 3, 4, 5, 6, 7]
+    #
+    # for strategy in [1, 2, 3]:
+    #     for n_urgent in range(10, 21):
+    #         input_file = os.path.join(
+    #             os.path.dirname(__file__), "..", f"input-S{strategy}-{n_urgent}.txt")
+    #         for rule in RULES:
+    #             tag = f"S{strategy}N{n_urgent}R{rule}"
+    #             print(f"\n{'=' * 60}\nRunning {tag}\n{'=' * 60}")
+    #             sim = Simulation(input_file, W, R, rule)
+    #             sim.runSimulations(
+    #                 out_csv  = os.path.join(RESULTS_DIR, f"replication_analysis_{tag}.csv"),
+    #                 strategy = strategy,
+    #                 n_urgent = n_urgent,
+    #             )
