@@ -1,5 +1,9 @@
 """Generate report figures and tables from the C++ simulation CSV output.
 
+Checked and strengthened for academic reporting: robust CSV path handling,
+data-validation diagnostics, corrected Top-10 bar labels, and added uncertainty
+and metric-correlation figures.
+
 Expected default layout:
     project/
     ├── python-code/plot_results.py
@@ -29,6 +33,9 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Iterable
 
+import matplotlib
+
+matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
@@ -44,9 +51,11 @@ WEIGHT_URGENT = 1.0 / 9.0
 WARMUP_CUTOFF_WEEK = 10
 FIGURE_DPI = 200
 
-BASE_DIR = Path(__file__).resolve().parent.parent
+SCRIPT_DIR = Path(__file__).resolve().parent
+BASE_DIR = SCRIPT_DIR.parent
 DEFAULT_RESULTS_DIR = BASE_DIR / "results"
 DEFAULT_RESULTS_V2_DIR = BASE_DIR / "results_v2"
+DEFAULT_LOCAL_RESULTS_DIR = SCRIPT_DIR
 
 RULE_LABELS = {
     1: "R1 - FCFS",
@@ -280,7 +289,19 @@ def pareto_mask(df: pd.DataFrame, objective_cols: list[str]) -> np.ndarray:
 def save_figure(fig: plt.Figure, plots_dir: Path, filename: str) -> None:
     plots_dir.mkdir(parents=True, exist_ok=True)
     path = plots_dir / filename
-    fig.tight_layout()
+
+    # tight_layout can warn for figures with colorbars or 3D axes; bbox_inches still
+    # preserves the complete figure in the saved output. Some figures, such as
+    # multi-panel heatmaps with a dedicated colorbar axis, use manual layout and
+    # explicitly opt out of tight_layout to avoid colorbar overlap.
+    if not getattr(fig, "_skip_tight_layout", False):
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore", UserWarning)
+            try:
+                fig.tight_layout()
+            except Exception:
+                pass
+
     fig.savefig(path, dpi=FIGURE_DPI, bbox_inches="tight")
     plt.close(fig)
     print(f"Saved {path}")
@@ -302,6 +323,46 @@ def save_table(df: pd.DataFrame, tables_dir: Path, basename: str, float_format: 
     print(f"Saved {tex_path}")
 
 
+def annotate_configurations(
+    ax: plt.Axes,
+    df: pd.DataFrame,
+    x_col: str,
+    y_col: str,
+    max_labels: int = 12,
+    ranking_col: str = "W",
+) -> None:
+    """Annotate a limited number of configurations to keep academic figures readable."""
+    if df.empty:
+        return
+
+    if ranking_col in df.columns:
+        label_df = df.nsmallest(min(max_labels, len(df)), ranking_col).copy()
+    else:
+        label_df = df.head(max_labels).copy()
+
+    for _, row in label_df.iterrows():
+        ax.annotate(
+            f"S{int(row['strategy'])}/N{int(row['n_urgent'])}/R{int(row['rule'])}",
+            (row[x_col], row[y_col]),
+            xytext=(4, 4),
+            textcoords="offset points",
+            fontsize=7,
+            alpha=0.85,
+        )
+
+    if len(df) > max_labels:
+        ax.text(
+            0.99,
+            0.01,
+            f"Labels shown for best {max_labels} efficient points by {ranking_col}",
+            transform=ax.transAxes,
+            ha="right",
+            va="bottom",
+            fontsize=7,
+            alpha=0.75,
+        )
+
+
 def load_experiment(path: Path) -> pd.DataFrame:
     df = standardize_columns(pd.read_csv(path))
     require_columns(df, ["strategy", "n_urgent", "rule", "AWT_e", "SWT_u", "OT"], path)
@@ -312,6 +373,41 @@ def load_experiment(path: Path) -> pd.DataFrame:
         df[col] = df[col].astype(int)
 
     return df.sort_values(["strategy", "n_urgent", "rule"]).reset_index(drop=True)
+
+
+def validate_experiment(df: pd.DataFrame, source: Path) -> None:
+    """Run lightweight data-integrity checks before plotting."""
+    key_cols = ["strategy", "n_urgent", "rule"]
+    duplicate_count = int(df.duplicated(key_cols).sum())
+    if duplicate_count:
+        raise ValueError(f"{source} contains {duplicate_count} duplicate strategy/n_urgent/rule rows.")
+
+    metric_cols = [c for c in ["W", "AWT_e", "SWT_u", "SWT_e", "OT"] if c in df.columns]
+    if df[key_cols + metric_cols].isna().any().any():
+        missing = df[key_cols + metric_cols].isna().sum()
+        raise ValueError(f"{source} contains missing values in required plotting columns: {missing.to_dict()}")
+
+    for col in ["W", "AWT_e", "SWT_u", "OT"]:
+        if col in df.columns and (df[col] < 0).any():
+            raise ValueError(f"{source} contains negative values in {col}, which is unexpected for waiting-time outputs.")
+
+    if "W_recomputed" in df.columns:
+        max_abs_diff = float((df["W"] - df["W_recomputed"]).abs().max())
+        print(f"Objective validation: max |reported W - recomputed W| = {max_abs_diff:.3e}")
+        if max_abs_diff > 1e-6:
+            warnings.warn(
+                "Reported objective W differs from W recomputed from AWT_e and SWT_u. "
+                "Check whether the CSV was generated with different objective weights.",
+                RuntimeWarning,
+            )
+
+    print(
+        "Design validation: "
+        f"{len(df)} unique configurations; "
+        f"strategies={sorted(map(int, df['strategy'].unique()))}; "
+        f"n_urgent={int(df['n_urgent'].min())}-{int(df['n_urgent'].max())}; "
+        f"rules={sorted(map(int, df['rule'].unique()))}"
+    )
 
 
 def load_warmup(path: Path | None) -> pd.DataFrame | None:
@@ -440,6 +536,7 @@ def plot_figure_2_main_effects(df: pd.DataFrame, plots_dir: Path) -> None:
     s_effect = df.groupby("strategy", as_index=False)["W"].mean().sort_values("W")
     axes[1].bar([label_strategy(s) for s in s_effect["strategy"]], s_effect["W"])
     axes[1].set_xlabel("Strategy")
+    axes[1].set_ylabel("Mean weighted objective W")
     axes[1].set_title("Main effect: strategy")
     axes[1].tick_params(axis="x", rotation=20)
     axes[1].grid(axis="y", alpha=0.3)
@@ -447,11 +544,12 @@ def plot_figure_2_main_effects(df: pd.DataFrame, plots_dir: Path) -> None:
     r_effect = df.groupby("rule", as_index=False)["W"].mean().sort_values("W")
     axes[2].bar([label_rule(r) for r in r_effect["rule"]], r_effect["W"])
     axes[2].set_xlabel("Rule")
+    axes[2].set_ylabel("Mean weighted objective W")
     axes[2].set_title("Main effect: rule")
     axes[2].tick_params(axis="x", rotation=20)
     axes[2].grid(axis="y", alpha=0.3)
 
-    fig.suptitle("Figure 2 - Main effects on weighted objective W", y=1.03, fontsize=13)
+    fig.suptitle("Figure 2 - Descriptive main effects on weighted objective W", y=1.03, fontsize=13)
 
     save_figure(fig, plots_dir, "fig02_main_effects.png")
 
@@ -515,9 +613,11 @@ def plot_figure_4_top10(df: pd.DataFrame, plots_dir: Path) -> pd.DataFrame:
     ax.set_title("Figure 4 - Top-10 configurations")
     ax.grid(axis="x", alpha=0.3)
     
-    # Add value labels to the right of the bars
-    for i, v in enumerate(x):
-        ax.text(v + 0.005, i, f"{v:.4f}", va='center', fontsize=9)
+    # Add value labels to the right of their corresponding bars.
+    label_offset = max(0.002, 0.015 * (float(np.nanmax(x)) - float(np.nanmin(x))))
+    for yi, v in zip(y, x):
+        ax.text(v + label_offset, yi, f"{v:.4f}", va="center", fontsize=9)
+    ax.set_xlim(right=float(np.nanmax(x)) + 6 * label_offset)
 
     save_figure(fig, plots_dir, "fig04_top10_bar_chart.png")
 
@@ -574,15 +674,7 @@ def plot_pareto_2d(
             alpha=0.65,
         )
 
-    for _, row in efficient.iterrows():
-        ax.annotate(
-            f"S{int(row['strategy'])}/N{int(row['n_urgent'])}/R{int(row['rule'])}",
-            (row[x_col], row[y_col]),
-            xytext=(4, 4),
-            textcoords="offset points",
-            fontsize=7,
-            alpha=0.8,
-        )
+    annotate_configurations(ax, efficient, x_col, y_col, max_labels=12, ranking_col="W")
 
     fig.colorbar(sc, ax=ax, label="Weighted objective W")
     ax.set_xlabel(x_label)
@@ -636,10 +728,23 @@ def plot_figure_A3_heatmap(df: pd.DataFrame, plots_dir: Path) -> None:
     vmin = float(df["W"].min())
     vmax = float(df["W"].max())
 
-    fig, axes = plt.subplots(1, len(strategies), figsize=(5.2 * len(strategies), 5.5), sharey=True)
-
-    if len(strategies) == 1:
-        axes = [axes]
+    # Reserve a separate, narrow axis for the colorbar. This prevents the legend
+    # from being drawn on top of the right-most heatmap panel.
+    fig = plt.figure(figsize=(5.4 * len(strategies) + 0.9, 5.8))
+    grid = fig.add_gridspec(
+        1,
+        len(strategies) + 1,
+        width_ratios=[1.0] * len(strategies) + [0.055],
+        wspace=0.20,
+    )
+    axes = []
+    shared_axis = None
+    for i in range(len(strategies)):
+        ax = fig.add_subplot(grid[0, i], sharey=shared_axis)
+        if shared_axis is None:
+            shared_axis = ax
+        axes.append(ax)
+    cax = fig.add_subplot(grid[0, -1])
 
     last_im = None
 
@@ -653,9 +758,9 @@ def plot_figure_A3_heatmap(df: pd.DataFrame, plots_dir: Path) -> None:
         last_im = ax.imshow(pivot.to_numpy(), aspect="auto", vmin=vmin, vmax=vmax, cmap="viridis")
 
         ax.set_title(label_strategy(strategy))
-        ax.set_xlabel("Rule")
+        ax.set_xlabel("Scheduling rule")
         ax.set_xticks(np.arange(len(pivot.columns)))
-        ax.set_xticklabels([label_rule(c) for c in pivot.columns], rotation=25, ha="right")
+        ax.set_xticklabels([label_rule(c) for c in pivot.columns], rotation=30, ha="right")
         ax.set_yticks(np.arange(len(pivot.index)))
         ax.set_yticklabels([str(int(n)) for n in pivot.index])
 
@@ -665,12 +770,15 @@ def plot_figure_A3_heatmap(df: pd.DataFrame, plots_dir: Path) -> None:
                 if np.isfinite(value):
                     ax.text(j, i, f"{value:.3f}", ha="center", va="center", fontsize=7)
 
-    axes[0].set_ylabel("n_urgent")
+    axes[0].set_ylabel("Reserved urgent slots per week (n_urgent)")
 
     if last_im is not None:
-        fig.colorbar(last_im, ax=axes, shrink=0.82, label="Weighted objective W")
+        colorbar = fig.colorbar(last_im, cax=cax)
+        colorbar.set_label("Weighted objective W", rotation=90, labelpad=12)
 
-    fig.suptitle("Figure A3 - Heatmap of W by rule and n_urgent", y=1.03, fontsize=13)
+    fig.suptitle("Figure A3 - Heatmap of weighted objective W by rule and n_urgent", y=0.98, fontsize=13)
+    fig.subplots_adjust(left=0.06, right=0.965, bottom=0.24, top=0.86, wspace=0.20)
+    fig._skip_tight_layout = True
 
     save_figure(fig, plots_dir, "figA3_heatmap.png")
 
@@ -740,15 +848,7 @@ def plot_objective_vs_spread(df: pd.DataFrame, plots_dir: Path) -> pd.DataFrame:
         label="Consistency-efficient",
     )
 
-    for _, row in efficient.iterrows():
-        ax.annotate(
-            f"S{int(row['strategy'])}/N{int(row['n_urgent'])}/R{int(row['rule'])}",
-            (row["W"], row["W_spread"]),
-            xytext=(4, 4),
-            textcoords="offset points",
-            fontsize=7,
-            alpha=0.8,
-        )
+    annotate_configurations(ax, efficient, "W", "W_spread", max_labels=12, ranking_col="W")
 
     ax.set_xlabel("Mean weighted objective W")
     ax.set_ylabel("Spread of W across replications / CI-derived SE")
@@ -864,6 +964,83 @@ def plot_figure_A10_subobjectives_by_nurgent(df: pd.DataFrame, plots_dir: Path) 
             
     fig.suptitle("Figure A10 - Sub-objectives by Strategy and n_urgent", y=1.03, fontsize=13)
     save_figure(fig, plots_dir, "figA10_subobjectives_by_nurgent.png")
+
+
+
+
+def plot_figure_5_top15_forest(df: pd.DataFrame, plots_dir: Path, n: int = 15) -> pd.DataFrame | None:
+    """Forest plot for uncertainty-aware comparison of the best configurations."""
+    if not {"W_lo", "W_hi"}.issubset(df.columns):
+        print("Skipping Figure 5: objective confidence-interval columns are not available")
+        return None
+
+    top = df.nsmallest(n, "W").copy().reset_index(drop=True)
+    top["rank"] = np.arange(1, len(top) + 1)
+    top["configuration"] = top.apply(config_label, axis=1)
+
+    y = np.arange(len(top))
+    lower = (top["W"] - top["W_lo"]).clip(lower=0).to_numpy()
+    upper = (top["W_hi"] - top["W"]).clip(lower=0).to_numpy()
+
+    fig, ax = plt.subplots(figsize=(10, 0.38 * len(top) + 2.4))
+    ax.errorbar(
+        top["W"],
+        y,
+        xerr=[lower, upper],
+        fmt="o",
+        capsize=3,
+        markersize=4.5,
+        linewidth=1.0,
+        label="Mean W with 95% CI",
+    )
+    ax.axvline(
+        float(top["W"].min()),
+        linestyle="--",
+        linewidth=1.0,
+        label="Best observed mean W",
+    )
+
+    ax.set_yticks(y)
+    ax.set_yticklabels(top["configuration"])
+    ax.invert_yaxis()
+    ax.set_xlabel("Weighted objective W")
+    ax.set_ylabel("Configuration")
+    ax.set_title(f"Figure 5 - 95% confidence intervals for top-{len(top)} configurations")
+    ax.grid(axis="x", alpha=0.3)
+    ax.legend(loc="best")
+
+    save_figure(fig, plots_dir, "fig05_top15_forest_CI.png")
+    return top
+
+
+def plot_metric_correlation_matrix(df: pd.DataFrame, plots_dir: Path, tables_dir: Path) -> None:
+    """Correlation matrix helps document trade-offs among the reported performance metrics."""
+    metric_cols = [c for c in ["W", "AWT_e", "SWT_u", "SWT_e", "OT"] if c in df.columns]
+    if len(metric_cols) < 2:
+        print("Skipping Figure A11: fewer than two metric columns are available")
+        return
+
+    corr = df[metric_cols].corr(method="pearson")
+
+    fig, ax = plt.subplots(figsize=(1.15 * len(metric_cols) + 3.0, 1.0 * len(metric_cols) + 2.7))
+    im = ax.imshow(corr.to_numpy(), vmin=-1, vmax=1, cmap="coolwarm")
+
+    ax.set_xticks(np.arange(len(metric_cols)))
+    ax.set_yticks(np.arange(len(metric_cols)))
+    ax.set_xticklabels(metric_cols, rotation=35, ha="right")
+    ax.set_yticklabels(metric_cols)
+
+    for i in range(len(metric_cols)):
+        for j in range(len(metric_cols)):
+            ax.text(j, i, f"{corr.iloc[i, j]:.2f}", ha="center", va="center", fontsize=9)
+
+    fig.colorbar(im, ax=ax, shrink=0.82, label="Pearson correlation coefficient")
+    ax.set_title("Figure A11 - Correlation matrix of performance metrics")
+
+    save_figure(fig, plots_dir, "figA11_metric_correlation_matrix.png")
+
+    corr_out = corr.reset_index().rename(columns={"index": "metric"})
+    save_table(corr_out, tables_dir, "metric_correlation_matrix", float_format="%.3f")
 
 
 def make_table_4_top10(top10: pd.DataFrame, tables_dir: Path) -> None:
@@ -1041,7 +1218,11 @@ def main() -> None:
 
     results_dir = args.results_dir
     if results_dir is None:
-        results_dir = DEFAULT_RESULTS_DIR if DEFAULT_RESULTS_DIR.exists() else DEFAULT_RESULTS_V2_DIR
+        candidate_dirs = [DEFAULT_RESULTS_DIR, DEFAULT_RESULTS_V2_DIR, DEFAULT_LOCAL_RESULTS_DIR, Path.cwd()]
+        results_dir = next(
+            (p for p in candidate_dirs if (p / "experiment_results.csv").exists() or (p / "experiment_results_v2.csv").exists()),
+            DEFAULT_RESULTS_DIR,
+        )
 
     results_dir = results_dir.resolve()
 
@@ -1055,6 +1236,10 @@ def main() -> None:
                 DEFAULT_RESULTS_DIR / "experiment_results_v2.csv",
                 DEFAULT_RESULTS_V2_DIR / "experiment_results.csv",
                 DEFAULT_RESULTS_V2_DIR / "experiment_results_v2.csv",
+                DEFAULT_LOCAL_RESULTS_DIR / "experiment_results.csv",
+                DEFAULT_LOCAL_RESULTS_DIR / "experiment_results_v2.csv",
+                Path.cwd() / "experiment_results.csv",
+                Path.cwd() / "experiment_results_v2.csv",
             ],
             "experiment results CSV",
             required=True,
@@ -1070,6 +1255,10 @@ def main() -> None:
                 results_dir / "warmup_analysis_v2.csv",
                 DEFAULT_RESULTS_DIR / "warmup_analysis.csv",
                 DEFAULT_RESULTS_V2_DIR / "warmup_analysis.csv",
+                DEFAULT_LOCAL_RESULTS_DIR / "warmup_analysis.csv",
+                DEFAULT_LOCAL_RESULTS_DIR / "warmup_analysis_v2.csv",
+                Path.cwd() / "warmup_analysis.csv",
+                Path.cwd() / "warmup_analysis_v2.csv",
             ],
             "warmup analysis CSV",
             required=False,
@@ -1081,6 +1270,7 @@ def main() -> None:
     tables_dir = (args.tables_dir or (results_dir / "tables")).resolve()
 
     experiment = load_experiment(experiment_file)
+    validate_experiment(experiment, experiment_file)
     warmup = load_warmup(warmup_file)
     replication_series = load_replication_objectives(results_dir)
     experiment = add_spread_column(experiment, replication_series)
@@ -1093,6 +1283,7 @@ def main() -> None:
     plot_figure_2_main_effects(experiment, plots_dir)
     plot_figure_3_w_by_strategy_nurgent(experiment, plots_dir)
     top10 = plot_figure_4_top10(experiment, plots_dir)
+    plot_figure_5_top15_forest(experiment, plots_dir)
 
     plot_pareto_2d(
         experiment,
@@ -1125,6 +1316,7 @@ def main() -> None:
     pareto_pool = plot_pareto_rule_bar(experiment, plots_dir)
     plot_3d_scatter(experiment, plots_dir)
     plot_figure_A10_subobjectives_by_nurgent(experiment, plots_dir)
+    plot_metric_correlation_matrix(experiment, plots_dir, tables_dir)
 
     make_table_4_top10(top10, tables_dir)
     make_table_5_planned_comparisons(experiment, replication_series, tables_dir)
