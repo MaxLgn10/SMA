@@ -1,3 +1,0 @@
-C:/Users/Cedri/Documents/2.HIR/Simulation/github/SMA/SMA Group Assignment Wout adjusted/build/CMakeFiles/simulation.dir
-C:/Users/Cedri/Documents/2.HIR/Simulation/github/SMA/SMA Group Assignment Wout adjusted/build/CMakeFiles/edit_cache.dir
-C:/Users/Cedri/Documents/2.HIR/Simulation/github/SMA/SMA Group Assignment Wout adjusted/build/CMakeFiles/rebuild_cache.dir
