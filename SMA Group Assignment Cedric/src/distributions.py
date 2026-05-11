@@ -29,10 +29,10 @@ assert abs(_URGENT_PROBS.sum() - 1.0) < 1e-9
 ELECTIVE_DAILY_LAMBDA = 28.345          # Poisson arrivals per weekday
 ELECTIVE_CALL_WINDOW = (0.0, 540.0)    # minutes after 08:00 (08:00–17:00)
 
-URGENT_LAMBDA_FULL = 2.5   # arrivals per full day (8h)
+URGENT_LAMBDA_FULL = 2.5   # arrivals per full day (9h incl. lunch)
 URGENT_LAMBDA_HALF = 1.25  # arrivals per half day (4h)
-FULL_DAY_MINUTES = 480.0   # open minutes on a full day
-HALF_DAY_MINUTES = 240.0   # open minutes on a half day
+FULL_DAY_MINUTES = 540.0   # open minutes on a full day (08:00-17:00 incl. lunch)
+HALF_DAY_MINUTES = 240.0   # open minutes on a half day (08:00-12:00)
 
 # ---- Tardiness parameters ----
 TARDINESS_MU = 0.0

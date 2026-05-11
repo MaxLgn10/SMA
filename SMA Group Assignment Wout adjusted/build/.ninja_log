@@ -1,0 +1,13 @@
+# ninja log v6
+183	2977	8002142847132860	CMakeFiles/simulation.dir/src/Helper.cpp.obj	94ba65ff4e790679
+323	5295	8002142848537680	CMakeFiles/simulation.dir/src/Simulation.cpp.obj	9d32c02973beb61d
+20	5391	8002142845513723	CMakeFiles/simulation.dir/main.cpp.obj	3c79a189a0fec3d2
+5393	7161	8002142899233771	C:/Users/Cedri/Documents/2.HIR/Simulation/github/SMA/SMA Group Assignment Wout adjusted/simulation.exe	9e86db6744295ee7
+36	3137	8002145499364418	CMakeFiles/simulation.dir/main.cpp.obj	3c79a189a0fec3d2
+3139	4406	8002145530388123	C:/Users/Cedri/Documents/2.HIR/Simulation/github/SMA/SMA Group Assignment Wout adjusted/simulation.exe	9e86db6744295ee7
+31	3353	8002154244852517	CMakeFiles/simulation.dir/main.cpp.obj	3c79a189a0fec3d2
+3356	4590	8002154278112980	C:/Users/Cedri/Documents/2.HIR/Simulation/github/SMA/SMA Group Assignment Wout adjusted/simulation.exe	9e86db6744295ee7
+34	3922	8002154974606338	CMakeFiles/simulation.dir/main.cpp.obj	3c79a189a0fec3d2
+3926	5121	8002155013521061	C:/Users/Cedri/Documents/2.HIR/Simulation/github/SMA/SMA Group Assignment Wout adjusted/simulation.exe	9e86db6744295ee7
+51	5038	8002168267769815	CMakeFiles/simulation.dir/main.cpp.obj	3c79a189a0fec3d2
+5041	7483	8002168317650578	C:/Users/Cedri/Documents/2.HIR/Simulation/github/SMA/SMA Group Assignment Wout adjusted/simulation.exe	9e86db6744295ee7

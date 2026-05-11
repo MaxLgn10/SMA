@@ -1,0 +1,7 @@
+comparison,A_reference,B_comparator,W_A,W_B,delta_W_B_minus_A,p_value_two_sided,n_pairs,method
+Best overall vs runner-up,"S3, N=13, R4 - Benchmark","S3, N=13, R2 - Bailey-Welch",0.4172812321,0.417417276,0.0001360439150000009,0.10373306621723251,100,paired_replication_t_test
+Best overall vs third-best,"S3, N=13, R4 - Benchmark","S3, N=12, R4 - Benchmark",0.4172812321,0.418204455,0.0009232228910000001,0.34754076263293643,100,paired_replication_t_test
+Best overall vs best S1 - end of sessions,"S3, N=13, R4 - Benchmark","S1, N=12, R2 - Bailey-Welch",0.4172812321,0.4522643734,0.034983141248000005,3.0503837607032144e-44,100,paired_replication_t_test
+Best overall vs best S2 - evenly distributed,"S3, N=13, R4 - Benchmark","S2, N=12, R4 - Benchmark",0.4172812321,0.4256255951,0.008344362945000001,2.7793342724711895e-10,100,paired_replication_t_test
+Best overall vs best R1 - FCFS,"S3, N=13, R4 - Benchmark","S3, N=13, R1 - FCFS",0.4172812321,0.4183006459,0.001019413789999996,9.806848172315274e-34,100,paired_replication_t_test
+Best overall vs best R3 - Blocking,"S3, N=13, R4 - Benchmark","S3, N=13, R3 - Blocking",0.4172812321,0.4202719792,0.0029907470979999994,5.47331102627739e-56,100,paired_replication_t_test
