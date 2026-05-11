@@ -376,6 +376,13 @@ class Simulation:
                 else:
                     patient.scanTime = max(prevScanEnd, arrivalTime)
 
+                # lunch break: no scan may start between 12:00 and 13:00 on full days
+                # (assignment: "No urgent patients are treated during the lunch break")
+                # a scan that started before 12:00 and runs into the break is uninterrupted
+                # (assignment: "The time working during the lunch break is not accounted as overtime")
+                if patient.scanDay not in (3, 5) and 12.0 <= patient.scanTime < 13.0:
+                    patient.scanTime = 13.0
+
                 wt = patient.getScanWT()
                 if active:
                     if patient.patientType == 1:
@@ -624,35 +631,22 @@ if __name__ == "__main__":
     W = WARMUP_WEEKS + 100
     R = 1000
 
-    # ── Single test run ────────────────────────────────────────────────────
-    # Verify everything works before launching the full experiment.
-    # Comment this block out once confirmed working.
-
-    INPUT_FILE = os.path.join(os.path.dirname(__file__), "..", "input-S1-14.txt")
-
-    sim = Simulation(INPUT_FILE, W, R, rule=1)
-    sim.runSimulations(
-        out_csv  = os.path.join(RESULTS_DIR, "replication_analysis_S1N14R1.csv"),
-        strategy = 1,
-        n_urgent = 14,
-    )
-
     # ── Full experiment ────────────────────────────────────────────────────
     # Runs all strategies x all N x all rules (including extended BW K=3,4,5).
     # Uncomment when ready — this will take a while.
     #
-    # RULES = [1, 2, 3, 4, 5, 6, 7]
-    #
-    # for strategy in [1, 2, 3]:
-    #     for n_urgent in range(10, 21):
-    #         input_file = os.path.join(
-    #             os.path.dirname(__file__), "..", f"input-S{strategy}-{n_urgent}.txt")
-    #         for rule in RULES:
-    #             tag = f"S{strategy}N{n_urgent}R{rule}"
-    #             print(f"\n{'=' * 60}\nRunning {tag}\n{'=' * 60}")
-    #             sim = Simulation(input_file, W, R, rule)
-    #             sim.runSimulations(
-    #                 out_csv  = os.path.join(RESULTS_DIR, f"replication_analysis_{tag}.csv"),
-    #                 strategy = strategy,
-    #                 n_urgent = n_urgent,
-    #             )
+    RULES = [1, 2, 3, 4, 5, 6, 7]
+    
+    for strategy in [1, 2, 3]:
+        for n_urgent in range(10, 21):
+            input_file = os.path.join(
+                os.path.dirname(__file__), "..", f"input-S{strategy}-{n_urgent}.txt")
+            for rule in RULES:
+                tag = f"S{strategy}N{n_urgent}R{rule}"
+                print(f"\n{'=' * 60}\nRunning {tag}\n{'=' * 60}")
+                sim = Simulation(input_file, W, R, rule)
+                sim.runSimulations(
+                    out_csv  = os.path.join(RESULTS_DIR, f"replication_analysis_{tag}.csv"),
+                    strategy = strategy,
+                    n_urgent = n_urgent,
+                )
