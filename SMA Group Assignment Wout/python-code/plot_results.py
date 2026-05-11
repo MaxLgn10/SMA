@@ -431,9 +431,10 @@ def plot_figure_2_main_effects(df: pd.DataFrame, plots_dir: Path) -> None:
 
     n_effect = df.groupby("n_urgent", as_index=False)["W"].mean()
     axes[0].plot(n_effect["n_urgent"], n_effect["W"], marker="o")
-    axes[0].set_xlabel("Reserved urgent slots per week")
-    axes[0].set_ylabel("Mean W")
+    axes[0].set_xlabel("Reserved urgent slots per week (n_urgent)")
+    axes[0].set_ylabel("Mean Weighted Objective W")
     axes[0].set_title("Main effect: n_urgent")
+    axes[0].set_xticks(sorted(df["n_urgent"].unique()))
     axes[0].grid(axis="y", alpha=0.3)
 
     s_effect = df.groupby("strategy", as_index=False)["W"].mean().sort_values("W")
@@ -462,13 +463,22 @@ def plot_figure_3_w_by_strategy_nurgent(df: pd.DataFrame, plots_dir: Path) -> No
 
     for strategy in sorted(best["strategy"].unique()):
         sub = best[best["strategy"] == strategy].sort_values("n_urgent")
-        ax.plot(
+        line = ax.plot(
             sub["n_urgent"],
             sub["W"],
             marker="o",
             linewidth=1.8,
             label=label_strategy(strategy),
-        )
+        )[0]
+
+        if {"W_lo", "W_hi"}.issubset(sub.columns):
+            ax.fill_between(
+                sub["n_urgent"],
+                sub["W_lo"],
+                sub["W_hi"],
+                color=line.get_color(),
+                alpha=0.15,
+            )
 
     ax.set_xlabel("Reserved urgent slots per week")
     ax.set_ylabel("Best W over rules")
@@ -504,6 +514,10 @@ def plot_figure_4_top10(df: pd.DataFrame, plots_dir: Path) -> pd.DataFrame:
     ax.set_xlabel("Weighted objective W")
     ax.set_title("Figure 4 - Top-10 configurations")
     ax.grid(axis="x", alpha=0.3)
+    
+    # Add value labels to the right of the bars
+    for i, v in enumerate(x):
+        ax.text(v + 0.005, i, f"{v:.4f}", va='center', fontsize=9)
 
     save_figure(fig, plots_dir, "fig04_top10_bar_chart.png")
 
@@ -594,7 +608,15 @@ def plot_figure_A2_interactions(df: pd.DataFrame, plots_dir: Path) -> None:
 
         for rule in sorted(sub["rule"].unique()):
             r = sub[sub["rule"] == rule].sort_values("n_urgent")
-            ax.plot(r["n_urgent"], r["W"], marker="o", linewidth=1.5, label=label_rule(rule))
+            line = ax.plot(r["n_urgent"], r["W"], marker="o", linewidth=1.5, label=label_rule(rule))[0]
+            if {"W_lo", "W_hi"}.issubset(r.columns):
+                ax.fill_between(
+                    r["n_urgent"],
+                    r["W_lo"],
+                    r["W_hi"],
+                    color=line.get_color(),
+                    alpha=0.15,
+                )
 
         ax.set_title(label_strategy(strategy))
         ax.set_xlabel("n_urgent")
@@ -659,7 +681,7 @@ def plot_figure_A4_boxplots_per_rule(df: pd.DataFrame, plots_dir: Path) -> None:
 
     fig, ax = plt.subplots(figsize=(8.5, 5.2))
 
-    ax.boxplot(data, labels=[label_rule(rule) for rule in rules], showmeans=True)
+    ax.boxplot(data, tick_labels=[label_rule(rule) for rule in rules], showmeans=True)
     ax.set_xlabel("Rule")
     ax.set_ylabel("Weighted objective W")
     ax.set_title("Figure A4 - Distribution of W per rule")
@@ -806,6 +828,42 @@ def plot_3d_scatter(df: pd.DataFrame, plots_dir: Path) -> None:
     ax.legend(loc="best")
 
     save_figure(fig, plots_dir, "figA9_3d_scatter_AWTe_SWTu_OT.png")
+
+
+def plot_figure_A10_subobjectives_by_nurgent(df: pd.DataFrame, plots_dir: Path) -> None:
+    fig, axes = plt.subplots(1, 3, figsize=(16, 5))
+    
+    metrics = [
+        ("AWT_e", "Mean elective wait (AWT_e) [h]", "Elective Wait by n_urgent"), 
+        ("SWT_u", "Mean urgent wait (SWT_u) [h]", "Urgent Wait by n_urgent"), 
+        ("OT", "Mean overtime (OT) [h]", "Overtime by n_urgent")
+    ]
+    
+    for i, (col, ylabel, title) in enumerate(metrics):
+        if col not in df.columns:
+            continue
+            
+        ax = axes[i]
+        for strategy in sorted(df["strategy"].unique()):
+            sub = df[df["strategy"] == strategy].groupby("n_urgent", as_index=False)[col].mean()
+            ax.plot(
+                sub["n_urgent"],
+                sub[col],
+                marker="o",
+                linewidth=1.8,
+                label=label_strategy(strategy)
+            )
+            
+        ax.set_xlabel("Reserved urgent slots per week (n_urgent)")
+        ax.set_ylabel(ylabel)
+        ax.set_title(title)
+        ax.set_xticks(sorted(df["n_urgent"].unique()))
+        ax.grid(axis="y", alpha=0.3)
+        if i == 0:
+            ax.legend()
+            
+    fig.suptitle("Figure A10 - Sub-objectives by Strategy and n_urgent", y=1.03, fontsize=13)
+    save_figure(fig, plots_dir, "figA10_subobjectives_by_nurgent.png")
 
 
 def make_table_4_top10(top10: pd.DataFrame, tables_dir: Path) -> None:
@@ -1066,6 +1124,7 @@ def main() -> None:
     plot_objective_vs_spread(experiment, plots_dir)
     pareto_pool = plot_pareto_rule_bar(experiment, plots_dir)
     plot_3d_scatter(experiment, plots_dir)
+    plot_figure_A10_subobjectives_by_nurgent(experiment, plots_dir)
 
     make_table_4_top10(top10, tables_dir)
     make_table_5_planned_comparisons(experiment, replication_series, tables_dir)

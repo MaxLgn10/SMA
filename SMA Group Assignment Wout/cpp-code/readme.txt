@@ -44,26 +44,26 @@ clang++ -O2 -std=c++17 -Iinclude main.cpp src/Simulation.cpp src/Helper.cpp -o s
 
 ```bash
 cd cpp-code
-./simulation single ../input-S1-14.txt 1 100 100 0 ../results/single_run_results.csv
+./simulation single ../input-S1-14.txt 1 100 100 0 1 ../results/single_run_results.csv
 ```
 
 Arguments:
 
 ```text
-single [inputFile] [rule] [W] [R] [warmupWeeks] [outFile]
+single [inputFile] [rule] [W] [R] [warmupWeeks] [urgentTwoBlocks=0|1] [outFile]
 ```
 
 ## Warmup analysis
 
 ```bash
 cd cpp-code
-./simulation warmup ../input-S1-14.txt 1 100 50 ../results/warmup_analysis.csv
+./simulation warmup ../input-S1-14.txt 1 100 50 1 ../results/warmup_analysis.csv
 ```
 
 Arguments:
 
 ```text
-warmup [inputFile] [rule] [W] [R] [outFile]
+warmup [inputFile] [rule] [W] [R] [urgentTwoBlocks=0|1] [outFile]
 ```
 
 ## Full experiment
@@ -72,13 +72,13 @@ This runs all 132 combinations: 3 strategies x 11 urgent slot levels x 4 appoint
 
 ```bash
 cd cpp-code
-./simulation experiment 100 100 10 .. ../results/experiment_results.csv
+./simulation experiment 100 100 10 1 .. ../results/experiment_results.csv
 ```
 
 Arguments:
 
 ```text
-experiment [W] [R] [warmupWeeks] [inputDir] [outFile]
+experiment [W] [R] [warmupWeeks] [urgentTwoBlocks=0|1] [inputDir] [outFile]
 ```
 
 ## Generate graphs

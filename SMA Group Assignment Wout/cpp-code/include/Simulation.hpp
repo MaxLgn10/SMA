@@ -96,6 +96,7 @@ public:
     int R = 100;
     int warmupWeeks = 0;
     int rule = 1;
+    bool urgentArrivalTwoBlocks = false;
 
     // Iteration variables retained for compatibility with the teacher template.
     int d = 0;

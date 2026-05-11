@@ -110,13 +110,14 @@ Metrics run_replication(simulation &sim, int seed, int warmupWeeks) {
 }
 
 void write_single_config(const string &inputFile, int rule, int W, int R, int warmupWeeks,
-                         const string &outFile) {
+                         bool urgentTwoBlocks, const string &outFile) {
     simulation sim;
     sim.inputFileName = inputFile;
     sim.rule = rule;
     sim.W = W;
     sim.R = R;
     sim.warmupWeeks = warmupWeeks;
+    sim.urgentArrivalTwoBlocks = urgentTwoBlocks;
     sim.setWeekSchedule();
 
     ofstream out(outFile);
@@ -151,13 +152,14 @@ void write_single_config(const string &inputFile, int rule, int W, int R, int wa
          << "Mean urgent scan WT = " << ur.mean << " h\n";
 }
 
-void write_warmup(const string &inputFile, int rule, int W, int R, const string &outFile) {
+void write_warmup(const string &inputFile, int rule, int W, int R, bool urgentTwoBlocks, const string &outFile) {
     simulation sim;
     sim.inputFileName = inputFile;
     sim.rule = rule;
     sim.W = W;
     sim.R = R;
     sim.warmupWeeks = 0;
+    sim.urgentArrivalTwoBlocks = urgentTwoBlocks;
     sim.setWeekSchedule();
 
     vector<double> sumElApp(W, 0.0), sumElScan(W, 0.0), sumUrScan(W, 0.0), sumOT(W, 0.0);
@@ -194,7 +196,7 @@ void write_warmup(const string &inputFile, int rule, int W, int R, const string 
     cout << "Warmup CSV written to: " << outFile << endl;
 }
 
-void write_experiment(int W, int R, int warmupWeeks, const string &inputDir, const string &outFile) {
+void write_experiment(int W, int R, int warmupWeeks, bool urgentTwoBlocks, const string &inputDir, const string &outFile) {
     ofstream out(outFile);
     if (!out.is_open()) {
         cerr << "ERROR: cannot write " << outFile << endl;
@@ -210,6 +212,7 @@ void write_experiment(int W, int R, int warmupWeeks, const string &inputDir, con
     sim.W = W;
     sim.R = R;
     sim.warmupWeeks = warmupWeeks;
+    sim.urgentArrivalTwoBlocks = urgentTwoBlocks;
 
     const int total = 3 * 11 * 4;
     int done = 0;
@@ -260,9 +263,9 @@ void write_experiment(int W, int R, int warmupWeeks, const string &inputDir, con
 
 void print_usage(const char *program) {
     cout << "Usage:\n"
-         << "  " << program << " single [inputFile=../input-S1-14.txt] [rule=1] [W=100] [R=100] [warmup=0] [outFile=../results/single_run_results.csv]\n"
-         << "  " << program << " warmup [inputFile=../input-S1-14.txt] [rule=1] [W=100] [R=50] [outFile=../results/warmup_analysis.csv]\n"
-         << "  " << program << " experiment [W=100] [R=100] [warmup=10] [inputDir=..] [outFile=../results/experiment_results.csv]\n";
+         << "  " << program << " single [inputFile] [rule] [W] [R] [warmup] [urgentTwoBlocks=0|1] [outFile]\n"
+         << "  " << program << " warmup [inputFile] [rule] [W] [R] [urgentTwoBlocks=0|1] [outFile]\n"
+         << "  " << program << " experiment [W] [R] [warmup] [urgentTwoBlocks=0|1] [inputDir] [outFile]\n";
 }
 
 int main(int argc, const char *argv[]) {
@@ -270,7 +273,7 @@ int main(int argc, const char *argv[]) {
 
     if (argc == 1) {
         // IDE-friendly default run.
-        write_single_config("../input-S1-14.txt", 1, 100, 100, 0, "../results/single_run_results.csv");
+        write_single_config("../input-S1-14.txt", 1, 100, 100, 0, false, "../results/single_run_results.csv");
         print_usage(argv[0]);
         return 0;
     }
@@ -283,22 +286,25 @@ int main(int argc, const char *argv[]) {
         int W = (argc > 4) ? atoi(argv[4]) : 100;
         int R = (argc > 5) ? atoi(argv[5]) : 100;
         int warmup = (argc > 6) ? atoi(argv[6]) : 0;
-        string outFile = (argc > 7) ? argv[7] : "../results/single_run_results.csv";
-        write_single_config(inputFile, rule, W, R, warmup, outFile);
+        bool urgentTwoBlocks = (argc > 7) ? (atoi(argv[7]) != 0) : false;
+        string outFile = (argc > 8) ? argv[8] : "../results/single_run_results.csv";
+        write_single_config(inputFile, rule, W, R, warmup, urgentTwoBlocks, outFile);
     } else if (mode == "warmup") {
         string inputFile = (argc > 2) ? argv[2] : "../input-S1-14.txt";
         int rule = (argc > 3) ? atoi(argv[3]) : 1;
         int W = (argc > 4) ? atoi(argv[4]) : 100;
         int R = (argc > 5) ? atoi(argv[5]) : 50;
-        string outFile = (argc > 6) ? argv[6] : "../results/warmup_analysis.csv";
-        write_warmup(inputFile, rule, W, R, outFile);
+        bool urgentTwoBlocks = (argc > 6) ? (atoi(argv[6]) != 0) : false;
+        string outFile = (argc > 7) ? argv[7] : "../results/warmup_analysis.csv";
+        write_warmup(inputFile, rule, W, R, urgentTwoBlocks, outFile);
     } else if (mode == "experiment") {
         int W = (argc > 2) ? atoi(argv[2]) : 100;
         int R = (argc > 3) ? atoi(argv[3]) : 100;
         int warmup = (argc > 4) ? atoi(argv[4]) : 10;
-        string inputDir = (argc > 5) ? argv[5] : "..";
-        string outFile = (argc > 6) ? argv[6] : "../results/experiment_results.csv";
-        write_experiment(W, R, warmup, inputDir, outFile);
+        bool urgentTwoBlocks = (argc > 5) ? (atoi(argv[5]) != 0) : false;
+        string inputDir = (argc > 6) ? argv[6] : "..";
+        string outFile = (argc > 7) ? argv[7] : "../results/experiment_results.csv";
+        write_experiment(W, R, warmup, urgentTwoBlocks, inputDir, outFile);
     } else {
         cerr << "Unknown mode: " << mode << endl;
         print_usage(argv[0]);
