@@ -1,6 +1,6 @@
 comparison,A_reference,B_comparator,W_A,W_B,delta_W_B_minus_A,p_value_two_sided,n_pairs,method
-Best overall vs runner-up,"S3, N=15, R4 - Benchmark","S3, N=15, R2 - Bailey-Welch",0.386560433,0.3867661151,0.0002056820999999931,0.904194035594342,0,ci_based_independent_normal_approximation
-Best overall vs third-best,"S3, N=15, R4 - Benchmark","S3, N=15, R1 - FCFS",0.386560433,0.3876966841,0.0011362511000000408,0.5061984619403279,0,ci_based_independent_normal_approximation
-Best overall vs best S1 - end of sessions,"S3, N=15, R4 - Benchmark","S1, N=14, R2 - Bailey-Welch",0.386560433,0.4312606189,0.04470018590000002,6.644991868613437e-200,0,ci_based_independent_normal_approximation
-Best overall vs best S2 - evenly distributed,"S3, N=15, R4 - Benchmark","S2, N=14, R4 - Benchmark",0.386560433,0.4057871467,0.01922671370000001,2.8156094096779416e-38,0,ci_based_independent_normal_approximation
-Best overall vs best R3 - Blocking,"S3, N=15, R4 - Benchmark","S3, N=15, R3 - Blocking",0.386560433,0.3899096973,0.0033492643000000433,0.049979576959955634,0,ci_based_independent_normal_approximation
+Best overall vs runner-up,"S3, N=15, R4 - Benchmark","S3, N=15, R2 - Bailey-Welch",0.386560433,0.3867661151,0.00020568210160000017,1.6733636229035976e-13,1000,paired_replication_t_test
+Best overall vs third-best,"S3, N=15, R4 - Benchmark","S3, N=15, R1 - FCFS",0.386560433,0.3876966841,0.001136251101,0.0,1000,paired_replication_t_test
+Best overall vs best S1 - end of sessions,"S3, N=15, R4 - Benchmark","S1, N=14, R2 - Bailey-Welch",0.386560433,0.4312606189,0.044700185952599995,0.0,1000,paired_replication_t_test
+Best overall vs best S2 - evenly distributed,"S3, N=15, R4 - Benchmark","S2, N=14, R4 - Benchmark",0.386560433,0.4057871467,0.0192267137141,8.169098521508962e-242,1000,paired_replication_t_test
+Best overall vs best R3 - Blocking,"S3, N=15, R4 - Benchmark","S3, N=15, R3 - Blocking",0.386560433,0.3899096973,0.0033492643272000013,0.0,1000,paired_replication_t_test
